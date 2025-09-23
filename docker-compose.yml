@@ -1,0 +1,53 @@
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=${PORT:-8000}
+      - APP_ENV=${APP_ENV:-local}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENABLE_METRICS=${ENABLE_METRICS:-0}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-29}
+
+  api-with-redis:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=${PORT:-8000}
+      - APP_ENV=${APP_ENV:-local}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENABLE_METRICS=${ENABLE_METRICS:-0}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-29}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    profiles:
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - redis
+
+volumes:
+  redis_data:
