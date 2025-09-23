@@ -35,8 +35,7 @@ class InMemoryStore(ConversationStore):
         """Remove expired conversations."""
         now = time.time()
         expired_keys = [
-            key for key, data in self._conversations.items()
-            if data["expires_at"] < now
+            key for key, data in self._conversations.items() if data["expires_at"] < now
         ]
         for key in expired_keys:
             del self._conversations[key]
@@ -54,8 +53,12 @@ class InMemoryStore(ConversationStore):
             turns_with_seq.append(turn)
 
         # Group by role and keep last 5 of each based on sequence
-        user_turns = sorted([t for t in turns_with_seq if t.role == "user"], key=lambda x: x.sequence)[-5:]
-        bot_turns = sorted([t for t in turns_with_seq if t.role == "bot"], key=lambda x: x.sequence)[-5:]
+        user_turns = sorted(
+            [t for t in turns_with_seq if t.role == "user"], key=lambda x: x.sequence
+        )[-5:]
+        bot_turns = sorted(
+            [t for t in turns_with_seq if t.role == "bot"], key=lambda x: x.sequence
+        )[-5:]
 
         # Merge and sort by sequence for chronological order
         all_turns = user_turns + bot_turns
@@ -98,7 +101,7 @@ class InMemoryStore(ConversationStore):
         self._conversations[conversation_id] = {
             "turns": trimmed_turns,
             "expires_at": expires_at,
-            "next_seq": next_seq
+            "next_seq": next_seq,
         }
 
     async def health_check(self) -> bool:
@@ -111,6 +114,7 @@ class RedisStore(ConversationStore):
 
     def __init__(self, redis_url: str):
         import redis.asyncio as redis
+
         self.redis = redis.from_url(redis_url)
 
     def _trim_turns(self, turns: list[Turn]) -> list[Turn]:
@@ -126,8 +130,12 @@ class RedisStore(ConversationStore):
             turns_with_seq.append(turn)
 
         # Group by role and keep last 5 of each based on sequence
-        user_turns = sorted([t for t in turns_with_seq if t.role == "user"], key=lambda x: x.sequence)[-5:]
-        bot_turns = sorted([t for t in turns_with_seq if t.role == "bot"], key=lambda x: x.sequence)[-5:]
+        user_turns = sorted(
+            [t for t in turns_with_seq if t.role == "user"], key=lambda x: x.sequence
+        )[-5:]
+        bot_turns = sorted(
+            [t for t in turns_with_seq if t.role == "bot"], key=lambda x: x.sequence
+        )[-5:]
 
         # Merge and sort by sequence for chronological order
         all_turns = user_turns + bot_turns
@@ -175,10 +183,7 @@ class RedisStore(ConversationStore):
         trimmed_turns = self._trim_turns(turns)
 
         # Store both turns and next sequence number
-        conv_data = {
-            "turns": [turn.model_dump() for turn in trimmed_turns],
-            "next_seq": next_seq
-        }
+        conv_data = {"turns": [turn.model_dump() for turn in trimmed_turns], "next_seq": next_seq}
         data = json.dumps(conv_data)
 
         # Save with 24h TTL

@@ -44,28 +44,22 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         try:
             # Wrap the call with a timeout
-            response = await asyncio.wait_for(
-                call_next(request),
-                timeout=self.timeout_seconds
-            )
+            response = await asyncio.wait_for(call_next(request), timeout=self.timeout_seconds)
             return response
         except TimeoutError:
             # Return timeout error
-            request_id = getattr(request.state, 'request_id', str(uuid4()))
+            request_id = getattr(request.state, "request_id", str(uuid4()))
 
             error_response = ErrorEnvelope(
                 error=ErrorInfo(
                     code="timeout",
                     message="Request exceeded time limit",
                     details={},
-                    trace_id=request_id
+                    trace_id=request_id,
                 )
             )
 
-            response = JSONResponse(
-                status_code=504,
-                content=error_response.model_dump()
-            )
+            response = JSONResponse(status_code=504, content=error_response.model_dump())
             response.headers["X-Request-Id"] = request_id
             return response
 
@@ -77,7 +71,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         start_time = time.time()
 
         # Get request ID
-        request_id = getattr(request.state, 'request_id', str(uuid4()))
+        request_id = getattr(request.state, "request_id", str(uuid4()))
 
         response = await call_next(request)
 
@@ -94,7 +88,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             "method": request.method,
             "status": response.status_code,
             "latency_ms": latency_ms,
-            "trace_id": request_id
+            "trace_id": request_id,
         }
 
         # Log as JSON

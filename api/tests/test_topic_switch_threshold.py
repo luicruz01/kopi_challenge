@@ -19,7 +19,9 @@ class TestTopicSwitchThreshold:
         # Start with technology topic
         response1 = client.post(
             "/api/v1/chat",
-            json={"message": "Artificial intelligence and machine learning will transform industries"}
+            json={
+                "message": "Artificial intelligence and machine learning will transform industries"
+            },
         )
 
         conv_id = response1.json()["conversation_id"]
@@ -27,13 +29,19 @@ class TestTopicSwitchThreshold:
         # Add one more exchange to get past first turn
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Neural networks are becoming more sophisticated"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Neural networks are becoming more sophisticated",
+            },
         )
 
         # Message with superficial climate overlap (just one keyword)
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "The technology environment is rapidly evolving"}
+            json={
+                "conversation_id": conv_id,
+                "message": "The technology environment is rapidly evolving",
+            },
         )
 
         bot_message = response3.json()["message"][-1]["message"]
@@ -48,8 +56,7 @@ class TestTopicSwitchThreshold:
         """Test that strong topic switch with multiple keywords triggers acknowledgment."""
         # Start with technology topic
         response1 = client.post(
-            "/api/v1/chat",
-            json={"message": "Technology and digital innovation are revolutionary"}
+            "/api/v1/chat", json={"message": "Technology and digital innovation are revolutionary"}
         )
 
         conv_id = response1.json()["conversation_id"]
@@ -57,13 +64,19 @@ class TestTopicSwitchThreshold:
         # Add one more exchange
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Software development is advancing rapidly"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Software development is advancing rapidly",
+            },
         )
 
         # Strong climate topic switch (multiple climate keywords)
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "But climate change and carbon emissions are destroying our environment"}
+            json={
+                "conversation_id": conv_id,
+                "message": "But climate change and carbon emissions are destroying our environment",
+            },
         )
 
         bot_message = response3.json()["message"][-1]["message"]
@@ -86,7 +99,7 @@ class TestTopicSwitchThreshold:
         # Start with education topic
         response1 = client.post(
             "/api/v1/chat",
-            json={"message": "Education and learning should be accessible to everyone"}
+            json={"message": "Education and learning should be accessible to everyone"},
         )
 
         conv_id = response1.json()["conversation_id"]
@@ -94,13 +107,19 @@ class TestTopicSwitchThreshold:
         # Continue education conversation
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Schools need better resources and teachers"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Schools need better resources and teachers",
+            },
         )
 
         # Message with single climate keyword but not really about climate
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "The learning environment should be supportive"}
+            json={
+                "conversation_id": conv_id,
+                "message": "The learning environment should be supportive",
+            },
         )
 
         bot_message = response3.json()["message"][-1]["message"]
@@ -116,51 +135,57 @@ class TestTopicSwitchThreshold:
         # Start with technology topic
         response1 = client.post(
             "/api/v1/chat",
-            json={"message": "Technology and artificial intelligence are the future"}
+            json={"message": "Technology and artificial intelligence are the future"},
         )
 
         conv_id = response1.json()["conversation_id"]
 
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Digital transformation is inevitable"}
+            json={"conversation_id": conv_id, "message": "Digital transformation is inevitable"},
         )
 
         # Test with exactly 2 climate keywords (should trigger)
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "We should focus on climate change and carbon reduction instead"}
+            json={
+                "conversation_id": conv_id,
+                "message": "We should focus on climate change and carbon reduction instead",
+            },
         )
 
         bot_message3 = response3.json()["message"][-1]["message"]
 
         # Should trigger with 2+ keywords
-        switch_found = any(indicator in bot_message3.lower() for indicator in ["stay focused", "open a new thread"])
+        switch_found = any(
+            indicator in bot_message3.lower() for indicator in ["stay focused", "open a new thread"]
+        )
         assert switch_found, f"Should trigger with 2+ keywords: {bot_message3}"
 
         # Start new conversation to test with 1 keyword
         response4 = client.post(
-            "/api/v1/chat",
-            json={"message": "Technology will change everything"}
+            "/api/v1/chat", json={"message": "Technology will change everything"}
         )
 
         conv_id2 = response4.json()["conversation_id"]
 
         response5 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id2, "message": "Innovation drives progress"}
+            json={"conversation_id": conv_id2, "message": "Innovation drives progress"},
         )
 
         # Test with only 1 climate keyword (should NOT trigger)
         response6 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id2, "message": "But the environment matters too"}
+            json={"conversation_id": conv_id2, "message": "But the environment matters too"},
         )
 
         bot_message6 = response6.json()["message"][-1]["message"]
 
         # Should NOT trigger with only 1 keyword
-        switch_found2 = any(indicator in bot_message6.lower() for indicator in ["stay focused", "open a new thread"])
+        switch_found2 = any(
+            indicator in bot_message6.lower() for indicator in ["stay focused", "open a new thread"]
+        )
         assert not switch_found2, f"Should NOT trigger with only 1 keyword: {bot_message6}"
 
     def test_spanish_topic_switch_threshold(self, client):
@@ -168,27 +193,32 @@ class TestTopicSwitchThreshold:
         # Start Spanish technology conversation
         response1 = client.post(
             "/api/v1/chat",
-            json={"message": "La tecnología y la inteligencia artificial son el futuro"}
+            json={"message": "La tecnología y la inteligencia artificial son el futuro"},
         )
 
         conv_id = response1.json()["conversation_id"]
 
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Las máquinas cambiarán todo"}
+            json={"conversation_id": conv_id, "message": "Las máquinas cambiarán todo"},
         )
 
         # Strong climate switch in Spanish (multiple keywords)
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Pero el cambio climático y las emisiones de carbono son más importantes"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Pero el cambio climático y las emisiones de carbono son más importantes",
+            },
         )
 
         bot_message = response3.json()["message"][-1]["message"]
 
         # Should contain Spanish topic switch acknowledgment
         spanish_switch_indicators = ["centrados", "hilo", "tecnología"]
-        switch_found = any(indicator in bot_message.lower() for indicator in spanish_switch_indicators)
+        switch_found = any(
+            indicator in bot_message.lower() for indicator in spanish_switch_indicators
+        )
 
         assert switch_found, f"Should trigger Spanish topic switch: {bot_message}"
 
@@ -197,20 +227,23 @@ class TestTopicSwitchThreshold:
         # Start with climate topic
         response1 = client.post(
             "/api/v1/chat",
-            json={"message": "Climate change and global warming are serious threats"}
+            json={"message": "Climate change and global warming are serious threats"},
         )
 
         conv_id = response1.json()["conversation_id"]
 
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Carbon emissions are rising"}
+            json={"conversation_id": conv_id, "message": "Carbon emissions are rising"},
         )
 
         # Continue with same topic (more climate keywords)
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Renewable energy and environment protection are crucial"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Renewable energy and environment protection are crucial",
+            },
         )
 
         bot_message = response3.json()["message"][-1]["message"]
@@ -226,20 +259,23 @@ class TestTopicSwitchThreshold:
         # Start with unconventional topic (maps to general)
         response1 = client.post(
             "/api/v1/chat",
-            json={"message": "Pizza with ranch dressing is the ultimate comfort food"}
+            json={"message": "Pizza with ranch dressing is the ultimate comfort food"},
         )
 
         conv_id = response1.json()["conversation_id"]
 
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Food preferences are very personal"}
+            json={"conversation_id": conv_id, "message": "Food preferences are very personal"},
         )
 
         # Mention some tech words - should not trigger switch from general
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Even technology can't predict taste preferences"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Even technology can't predict taste preferences",
+            },
         )
 
         bot_message = response3.json()["message"][-1]["message"]
@@ -254,27 +290,31 @@ class TestTopicSwitchThreshold:
         """Test detection across different supported topics."""
         # Start with education
         response1 = client.post(
-            "/api/v1/chat",
-            json={"message": "Education and schools need major improvements"}
+            "/api/v1/chat", json={"message": "Education and schools need major improvements"}
         )
 
         conv_id = response1.json()["conversation_id"]
 
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Teachers deserve better support"}
+            json={"conversation_id": conv_id, "message": "Teachers deserve better support"},
         )
 
         # Switch to technology (different supported topic)
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Actually, artificial intelligence and digital technology will solve this"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Actually, artificial intelligence and digital technology will solve this",
+            },
         )
 
         bot_message = response3.json()["message"][-1]["message"]
 
         # Should detect switch from education to technology
-        switch_found = any(indicator in bot_message.lower() for indicator in ["stay focused", "open a new thread"])
+        switch_found = any(
+            indicator in bot_message.lower() for indicator in ["stay focused", "open a new thread"]
+        )
         education_mentioned = "education" in bot_message.lower()
 
         assert switch_found, f"Should detect education->technology switch: {bot_message}"

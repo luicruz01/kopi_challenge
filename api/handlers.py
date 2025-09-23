@@ -25,23 +25,27 @@ class DebateEngine:
         text_lower = text.lower()
 
         # Check for Spanish accents first (strong indicator)
-        has_accents = any(char in text for char in 'áéíóúüñ¿¡')
+        has_accents = any(char in text for char in "áéíóúüñ¿¡")
         if has_accents:
-            return 'es'
+            return "es"
 
         # Get language-specific words from lexicon
         spanish_specific = LANGUAGE_MARKERS["es"]["specific_words"]
         english_specific = LANGUAGE_MARKERS["en"]["specific_words"]
 
         # Count language-specific words
-        spanish_count = sum(1 for word in spanish_specific if ' ' + word + ' ' in ' ' + text_lower + ' ')
-        english_count = sum(1 for word in english_specific if ' ' + word + ' ' in ' ' + text_lower + ' ')
+        spanish_count = sum(
+            1 for word in spanish_specific if " " + word + " " in " " + text_lower + " "
+        )
+        english_count = sum(
+            1 for word in english_specific if " " + word + " " in " " + text_lower + " "
+        )
 
         # If we have clear indicators for one language, use it
         if spanish_count >= 2 and spanish_count > english_count:
-            return 'es'
+            return "es"
         if english_count >= 2 and english_count > spanish_count:
-            return 'en'
+            return "en"
 
         # Fallback: check for common patterns
         spanish_patterns = LANGUAGE_MARKERS["es"]["patterns"]
@@ -51,12 +55,12 @@ class DebateEngine:
         has_english_pattern = any(pattern in text_lower for pattern in english_patterns)
 
         if has_spanish_pattern and not has_english_pattern:
-            return 'es'
+            return "es"
         if has_english_pattern and not has_spanish_pattern:
-            return 'en'
+            return "en"
 
         # Final fallback - if uncertain, default to English
-        return 'en'
+        return "en"
 
     def detect_stance(self, text: str, lang: str) -> str:
         """Detect user stance using rule-based heuristics - returns 'pro' or 'contra'."""
@@ -78,32 +82,32 @@ class DebateEngine:
         # Determine stance based on indicators and negations
         # High negation + pro words often means contra stance
         if negation_count >= 2 and pro_count > 0:
-            return 'contra'
+            return "contra"
 
         # Direct contra indicators
         if contra_count > pro_count:
-            return 'contra'
+            return "contra"
 
         # Pro indicators outweigh contra
         if pro_count > contra_count:
-            return 'pro'
+            return "pro"
 
         # Fallback: look for overall sentiment with negation context
         if negation_count > 0:
-            return 'contra'
+            return "contra"
 
         # Final fallback - assume pro stance (most common)
-        return 'pro'
+        return "pro"
 
-    def extract_topic_and_stance(self, message: str, lang: str = 'en') -> tuple[str, str]:
+    def extract_topic_and_stance(self, message: str, lang: str = "en") -> tuple[str, str]:
         """Extract topic and determine bot's stance (always opposite of user)."""
         message_lower = message.lower()
 
         topics = self.topic_data[lang]
 
-        detected_topic = 'general'
+        detected_topic = "general"
         for topic, data in topics.items():
-            if any(keyword in message_lower for keyword in data['keywords']):
+            if any(keyword in message_lower for keyword in data["keywords"]):
                 detected_topic = topic
                 break
 
@@ -111,48 +115,64 @@ class DebateEngine:
         user_stance = self.detect_stance(message, lang)
 
         # Bot always takes opposite stance for engaging debate
-        if user_stance == 'pro':
-            bot_stance = 'opposing'
+        if user_stance == "pro":
+            bot_stance = "opposing"
         else:
-            bot_stance = 'supporting'
+            bot_stance = "supporting"
 
         return detected_topic, bot_stance
 
     def extract_claim(self, text: str, lang: str) -> str:
         """Extract a key claim from user text for refutation."""
         # Split into clauses by punctuation
-        clauses = re.split(r'[.?!;]', text.strip())
+        clauses = re.split(r"[.?!;]", text.strip())
 
         if not clauses:
-            return "su punto" if lang == 'es' else "your point"
+            return "su punto" if lang == "es" else "your point"
 
         # Find longest clause
         longest_clause = max(clauses, key=len).strip()
 
         if not longest_clause:
-            return "su punto" if lang == 'es' else "your point"
+            return "su punto" if lang == "es" else "your point"
 
         # Remove filler phrases
-        if lang == 'es':
-            fillers = ['creo que', 'pienso que', 'me parece que', 'en mi opinión', 'según', 'para mí']
+        if lang == "es":
+            fillers = [
+                "creo que",
+                "pienso que",
+                "me parece que",
+                "en mi opinión",
+                "según",
+                "para mí",
+            ]
         else:
-            fillers = ['i think', 'i believe', 'it seems', 'in my opinion', 'according to', 'for me']
+            fillers = [
+                "i think",
+                "i believe",
+                "it seems",
+                "in my opinion",
+                "according to",
+                "for me",
+            ]
 
         for filler in fillers:
-            longest_clause = longest_clause.replace(filler, '').strip()
+            longest_clause = longest_clause.replace(filler, "").strip()
 
         # Cap length and clean
         if len(longest_clause) > 200:
             longest_clause = longest_clause[:200] + "..."
 
-        return longest_clause or ("su punto" if lang == 'es' else "your point")
+        return longest_clause or ("su punto" if lang == "es" else "your point")
 
     def _get_deterministic_choice(self, options: list[str], seed: str) -> str:
         """Get deterministic choice from options based on seed."""
         index = stable_index(seed, len(options))
         return options[index]
 
-    def _get_rotated_analogy(self, analogies: list[str], seed: str, conversation_history: list[Turn]) -> str:
+    def _get_rotated_analogy(
+        self, analogies: list[str], seed: str, conversation_history: list[Turn]
+    ) -> str:
         """Get analogy with rotation to avoid immediate repetition."""
         # Get the base choice
         choice_index = stable_index(seed, len(analogies))
@@ -181,9 +201,9 @@ class DebateEngine:
         # Count keyword matches for each topic
         topic_scores = {}
         for topic, data in topics.items():
-            if topic == 'general':
+            if topic == "general":
                 continue
-            score = sum(1 for keyword in data['keywords'] if keyword in message_lower)
+            score = sum(1 for keyword in data["keywords"] if keyword in message_lower)
             if score > 0:
                 topic_scores[topic] = score
 
@@ -195,7 +215,9 @@ class DebateEngine:
 
         return None
 
-    def _get_rotated_phrase(self, phrases: list[str], seed: str, conversation_history: list[Turn]) -> str:
+    def _get_rotated_phrase(
+        self, phrases: list[str], seed: str, conversation_history: list[Turn]
+    ) -> str:
         """Get phrase with rotation to avoid immediate repetition."""
         # Get the base choice
         choice_index = stable_index(seed, len(phrases))
@@ -216,46 +238,55 @@ class DebateEngine:
 
         return phrases[choice_index]
 
-    def _generate_unconventional_topic_response(self, stance: str, user_message: str,
-                                               conversation_history: list[Turn], lang: str) -> str:
+    def _generate_unconventional_topic_response(
+        self, stance: str, user_message: str, conversation_history: list[Turn], lang: str
+    ) -> str:
         """Generate fallback response for unconventional/subjective topics."""
         # Extract subject from user message for context
         claim = self.extract_claim(user_message, lang)
 
         # Acknowledge subjectivity/atypical nature
-        if lang == 'es':
-            acknowledgment = "Reconozco que se trata de un tema subjetivo y de preferencias personales."
-            stance_intro = "Sin embargo, mantengo mi posición de que" if stance == 'opposing' else "Apoyo firmemente que"
+        if lang == "es":
+            acknowledgment = (
+                "Reconozco que se trata de un tema subjetivo y de preferencias personales."
+            )
+            stance_intro = (
+                "Sin embargo, mantengo mi posición de que"
+                if stance == "opposing"
+                else "Apoyo firmemente que"
+            )
         else:
             acknowledgment = "I recognize this is a subjective matter of personal preference."
-            stance_intro = "However, I maintain that" if stance == 'opposing' else "I firmly support that"
+            stance_intro = (
+                "However, I maintain that" if stance == "opposing" else "I firmly support that"
+            )
 
         # Generic but relevant arguments based on stance
-        if stance == 'opposing':
-            if lang == 'es':
+        if stance == "opposing":
+            if lang == "es":
                 generic_args = [
                     "las tradiciones y estándares establecidos tienen valor por una razón",
                     "la consistencia en nuestras elecciones refleja principios sólidos",
-                    "no todas las innovaciones o cambios representan mejoras reales"
+                    "no todas las innovaciones o cambios representan mejoras reales",
                 ]
             else:
                 generic_args = [
                     "established traditions and standards have value for a reason",
                     "consistency in our choices reflects solid principles",
-                    "not all innovations or changes represent real improvements"
+                    "not all innovations or changes represent real improvements",
                 ]
         else:
-            if lang == 'es':
+            if lang == "es":
                 generic_args = [
                     "la diversidad de opciones enriquece nuestras experiencias",
                     "la apertura a diferentes enfoques fomenta el crecimiento personal",
-                    "las preferencias individuales merecen respeto y consideración"
+                    "las preferencias individuales merecen respeto y consideración",
                 ]
             else:
                 generic_args = [
                     "diversity of options enriches our experiences",
                     "openness to different approaches fosters personal growth",
-                    "individual preferences deserve respect and consideration"
+                    "individual preferences deserve respect and consideration",
                 ]
 
         # Select argument deterministically
@@ -265,26 +296,44 @@ class DebateEngine:
 
         # Build response
         reasoning_seed = f"unconventional_reasoning_{turn_count}"
-        reasoning = self._get_rotated_phrase(self.reasoning_phrases[lang], reasoning_seed, conversation_history)
+        reasoning = self._get_rotated_phrase(
+            self.reasoning_phrases[lang], reasoning_seed, conversation_history
+        )
 
         closing_seed = f"unconventional_closing_{turn_count}"
-        closing = self._get_rotated_phrase(self.closing_phrases[lang], closing_seed, conversation_history)
+        closing = self._get_rotated_phrase(
+            self.closing_phrases[lang], closing_seed, conversation_history
+        )
 
         # Refutation using extracted claim
-        if lang == 'es':
-            refutation = f"Aunque mencionas que \"{claim}\", esta perspectiva pasa por alto consideraciones importantes."
+        if lang == "es":
+            refutation = f'Aunque mencionas que "{claim}", esta perspectiva pasa por alto consideraciones importantes.'
         else:
-            refutation = f"While you mention \"{claim}\", this perspective overlooks important considerations."
+            refutation = (
+                f'While you mention "{claim}", this perspective overlooks important considerations.'
+            )
 
-        return f"{acknowledgment} {stance_intro} {selected_arg}. En términos generales, {reasoning}. {refutation} {closing}" if lang == 'es' else f"{acknowledgment} {stance_intro} {selected_arg}. Generally speaking, {reasoning}. {refutation} {closing}"
+        return (
+            f"{acknowledgment} {stance_intro} {selected_arg}. En términos generales, {reasoning}. {refutation} {closing}"
+            if lang == "es"
+            else f"{acknowledgment} {stance_intro} {selected_arg}. Generally speaking, {reasoning}. {refutation} {closing}"
+        )
 
-    def generate_response(self, topic: str, stance: str, user_message: str,
-                         conversation_history: list[Turn], lang: str = 'en',
-                         metadata: dict = None) -> str:
+    def generate_response(
+        self,
+        topic: str,
+        stance: str,
+        user_message: str,
+        conversation_history: list[Turn],
+        lang: str = "en",
+        metadata: dict = None,
+    ) -> str:
         """Generate deterministic multilingual debate response with variety."""
         # Check for unconventional topic fallback first
-        if topic == 'general':
-            return self._generate_unconventional_topic_response(stance, user_message, conversation_history, lang)
+        if topic == "general":
+            return self._generate_unconventional_topic_response(
+                stance, user_message, conversation_history, lang
+            )
 
         # Check for topic switch acknowledgment
         topic_switch_ack = ""
@@ -292,8 +341,16 @@ class DebateEngine:
             switched_topic = self.detect_topic_switch(user_message, topic, lang)
             if switched_topic:
                 topic_names = {
-                    'en': {'climate': 'climate change', 'technology': 'technology', 'education': 'education'},
-                    'es': {'climate': 'cambio climático', 'technology': 'tecnología', 'education': 'educación'}
+                    "en": {
+                        "climate": "climate change",
+                        "technology": "technology",
+                        "education": "education",
+                    },
+                    "es": {
+                        "climate": "cambio climático",
+                        "technology": "tecnología",
+                        "education": "educación",
+                    },
                 }
                 fixed_name = topic_names.get(lang, {}).get(topic, topic)
                 new_name = topic_names.get(lang, {}).get(switched_topic, switched_topic)
@@ -306,7 +363,7 @@ class DebateEngine:
         seed = f"{topic}_{stance}_{lang}_{turn_count}_{user_message[:30]}"
 
         # Get topic data
-        topic_data = self.topic_data[lang].get(topic, self.topic_data[lang]['general'])
+        topic_data = self.topic_data[lang].get(topic, self.topic_data[lang]["general"])
         content_bank = self.content_banks[lang]
 
         # 1. Anchor - stance assertion with variety
@@ -323,13 +380,17 @@ class DebateEngine:
             argument = self._get_deterministic_choice(topic_data["arguments"], arg_seed)
             # Use rotated reasoning phrases
             reasoning_seed = f"{seed}_reasoning_{i}"
-            reasoning = self._get_rotated_phrase(self.reasoning_phrases[lang], reasoning_seed, conversation_history)
+            reasoning = self._get_rotated_phrase(
+                self.reasoning_phrases[lang], reasoning_seed, conversation_history
+            )
             arguments.append(template.format(argument=argument, reasoning=reasoning))
 
         # 3. Generate analogy with rotation
         analogy_seed = f"{seed}_analogy"
         analogy_template = self._get_deterministic_choice(content_bank["analogies"], analogy_seed)
-        analogy = self._get_rotated_analogy(topic_data["analogies"], analogy_seed, conversation_history)
+        analogy = self._get_rotated_analogy(
+            topic_data["analogies"], analogy_seed, conversation_history
+        )
         principle = self._get_deterministic_choice(topic_data["principles"], analogy_seed)
         analogy_text = analogy_template.format(analogy=analogy, principle=principle)
 
@@ -341,29 +402,35 @@ class DebateEngine:
 
         # 5. Better refutation using extracted claim
         refutation_templates = {
-            'en': [
-                "Your claim that \"{claim}\" overlooks the broader context.",
-                "While you mention \"{claim}\", this perspective misses key considerations.",
-                "The argument that \"{claim}\" fails to account for important factors."
+            "en": [
+                'Your claim that "{claim}" overlooks the broader context.',
+                'While you mention "{claim}", this perspective misses key considerations.',
+                'The argument that "{claim}" fails to account for important factors.',
             ],
-            'es': [
-                "Tu afirmación de que \"{claim}\" pasa por alto el contexto más amplio.",
-                "Aunque mencionas que \"{claim}\", esta perspectiva pierde consideraciones clave.",
-                "El argumento de que \"{claim}\" no tiene en cuenta factores importantes."
-            ]
+            "es": [
+                'Tu afirmación de que "{claim}" pasa por alto el contexto más amplio.',
+                'Aunque mencionas que "{claim}", esta perspectiva pierde consideraciones clave.',
+                'El argumento de que "{claim}" no tiene en cuenta factores importantes.',
+            ],
         }
 
         refutation_seed = f"{seed}_refutation"
         claim = self.extract_claim(user_message, lang)
-        refutation_template = self._get_deterministic_choice(refutation_templates[lang], refutation_seed)
+        refutation_template = self._get_deterministic_choice(
+            refutation_templates[lang], refutation_seed
+        )
         refutation = refutation_template.format(claim=claim)
 
         # 6. Conclusion with rotated phrases
         close_seed = f"{seed}_close"
-        conclusion = self._get_rotated_phrase(self.closing_phrases[lang], close_seed, conversation_history)
+        conclusion = self._get_rotated_phrase(
+            self.closing_phrases[lang], close_seed, conversation_history
+        )
 
         # Combine all parts
-        response_parts = [anchor] + arguments + [analogy_text, question_text, refutation, conclusion]
+        response_parts = (
+            [anchor] + arguments + [analogy_text, question_text, refutation, conclusion]
+        )
         response_text = " ".join(response_parts)
 
         # Prepend topic switch acknowledgment if needed
@@ -393,7 +460,7 @@ class ChatHandler:
             self.conversations_metadata[conversation_id] = {
                 "topic": topic,
                 "stance": stance,
-                "lang": lang
+                "lang": lang,
             }
 
             existing_turns = []
@@ -409,9 +476,9 @@ class ChatHandler:
                         "error": {
                             "code": "not_found",
                             "message": "Conversation not found",
-                            "trace_id": request_id
+                            "trace_id": request_id,
                         }
-                    }
+                    },
                 )
 
             # Get metadata for this conversation
@@ -420,7 +487,7 @@ class ChatHandler:
                 if existing_turns:
                     first_user_message = next(
                         (turn.message for turn in existing_turns if turn.role == "user"),
-                        request.message
+                        request.message,
                     )
                     # Detect language from first user message
                     lang = self.engine.detect_lang(first_user_message)
@@ -428,7 +495,7 @@ class ChatHandler:
                     self.conversations_metadata[conversation_id] = {
                         "topic": topic,
                         "stance": stance,
-                        "lang": lang
+                        "lang": lang,
                     }
                 else:
                     # Fallback - detect from current message
@@ -436,7 +503,7 @@ class ChatHandler:
                     self.conversations_metadata[conversation_id] = {
                         "topic": "general",
                         "stance": "opposing",
-                        "lang": lang
+                        "lang": lang,
                     }
 
         # Add user message to conversation
@@ -451,7 +518,7 @@ class ChatHandler:
             request.message,
             current_turns,
             metadata["lang"],
-            metadata
+            metadata,
         )
 
         # Add bot response
@@ -463,7 +530,4 @@ class ChatHandler:
 
         # Return response (storage already trims to last 10)
         final_turns = await self.store.get_conversation(conversation_id)
-        return ChatResponse(
-            conversation_id=conversation_id,
-            message=final_turns or current_turns
-        )
+        return ChatResponse(conversation_id=conversation_id, message=final_turns or current_turns)

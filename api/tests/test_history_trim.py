@@ -15,8 +15,7 @@ def test_history_trim_after_many_exchanges(client):
     """Test that after >5 exchanges, response still returns only last 5×2 (max 10)."""
     # Start a conversation
     response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": "Let's talk about technology"}
+        "/api/v1/chat", json={"conversation_id": None, "message": "Let's talk about technology"}
     )
 
     assert response.status_code == 200
@@ -31,8 +30,7 @@ def test_history_trim_after_many_exchanges(client):
         messages_sent.append(user_message)
 
         response = client.post(
-            "/api/v1/chat",
-            json={"conversation_id": conversation_id, "message": user_message}
+            "/api/v1/chat", json={"conversation_id": conversation_id, "message": user_message}
         )
 
         assert response.status_code == 200
@@ -46,7 +44,7 @@ def test_history_trim_after_many_exchanges(client):
     for i in range(0, len(final_messages), 2):
         assert final_messages[i]["role"] == "user"
         if i + 1 < len(final_messages):
-            assert final_messages[i+1]["role"] == "bot"
+            assert final_messages[i + 1]["role"] == "bot"
 
     # The messages should be the most recent ones
     # Since we sent 8 user messages, the response should contain the last 5
@@ -64,16 +62,14 @@ def test_history_trim_preserves_order(client):
     """Test that trimmed history preserves chronological order."""
     # Start conversation
     response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": "First message"}
+        "/api/v1/chat", json={"conversation_id": None, "message": "First message"}
     )
     conversation_id = response.json()["conversation_id"]
 
     # Send many messages to trigger trimming
     for i in range(10):  # This will create 11 exchanges total
         response = client.post(
-            "/api/v1/chat",
-            json={"conversation_id": conversation_id, "message": f"Message {i+2}"}
+            "/api/v1/chat", json={"conversation_id": conversation_id, "message": f"Message {i+2}"}
         )
 
     data = response.json()
@@ -94,7 +90,7 @@ def test_history_trim_preserves_order(client):
 
         # In chronological order, user messages should come before corresponding bot messages
         if i > 0:
-            prev_message = messages[i-1]
+            prev_message = messages[i - 1]
             if message["role"] == "bot" and prev_message["role"] == "user":
                 # This is valid: user then bot
                 continue
@@ -112,16 +108,14 @@ def test_trim_logic_with_storage(client):
     """Test that storage trimming works correctly."""
     # Create conversation
     response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": "Start conversation"}
+        "/api/v1/chat", json={"conversation_id": None, "message": "Start conversation"}
     )
     conversation_id = response.json()["conversation_id"]
 
     # Add multiple exchanges
     for i in range(8):  # 9 total exchanges = 18 messages
         response = client.post(
-            "/api/v1/chat",
-            json={"conversation_id": conversation_id, "message": f"Exchange {i+2}"}
+            "/api/v1/chat", json={"conversation_id": conversation_id, "message": f"Exchange {i+2}"}
         )
 
     # Get final state
@@ -134,8 +128,7 @@ def test_trim_logic_with_storage(client):
 
     # Verify each subsequent request also returns trimmed history
     response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": conversation_id, "message": "One more message"}
+        "/api/v1/chat", json={"conversation_id": conversation_id, "message": "One more message"}
     )
 
     data = response.json()
@@ -152,17 +145,13 @@ def test_trim_logic_with_storage(client):
 def test_trim_edge_case_exactly_five_exchanges(client):
     """Test behavior when exactly 5 exchanges exist."""
     # Start conversation
-    response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": "Message 1"}
-    )
+    response = client.post("/api/v1/chat", json={"conversation_id": None, "message": "Message 1"})
     conversation_id = response.json()["conversation_id"]
 
     # Make exactly 4 more exchanges (5 total)
     for i in range(4):
         response = client.post(
-            "/api/v1/chat",
-            json={"conversation_id": conversation_id, "message": f"Message {i+2}"}
+            "/api/v1/chat", json={"conversation_id": conversation_id, "message": f"Message {i+2}"}
         )
 
     data = response.json()

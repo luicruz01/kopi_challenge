@@ -18,7 +18,7 @@ def test_chat_without_conversation_id(client):
     """Test POST without conversation_id returns UUID v4 and correct schema."""
     response = client.post(
         "/api/v1/chat",
-        json={"conversation_id": None, "message": "I think climate change is not a big deal"}
+        json={"conversation_id": None, "message": "I think climate change is not a big deal"},
     )
 
     assert response.status_code == 200
@@ -53,8 +53,7 @@ def test_chat_with_conversation_id(client):
     """Test POST with existing conversation_id continues conversation."""
     # First request to create conversation
     response1 = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": "Technology is amazing"}
+        "/api/v1/chat", json={"conversation_id": None, "message": "Technology is amazing"}
     )
 
     assert response1.status_code == 200
@@ -64,7 +63,7 @@ def test_chat_with_conversation_id(client):
     # Second request with existing conversation_id
     response2 = client.post(
         "/api/v1/chat",
-        json={"conversation_id": conversation_id, "message": "What are the benefits?"}
+        json={"conversation_id": conversation_id, "message": "What are the benefits?"},
     )
 
     assert response2.status_code == 200
@@ -88,10 +87,7 @@ def test_chat_invalid_conversation_id(client):
     """Test POST with invalid conversation_id returns 404."""
     fake_uuid = str(uuid.uuid4())
 
-    response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": fake_uuid, "message": "Hello"}
-    )
+    response = client.post("/api/v1/chat", json={"conversation_id": fake_uuid, "message": "Hello"})
 
     assert response.status_code == 404
     data = response.json()
@@ -106,10 +102,7 @@ def test_chat_message_too_large(client):
     """Test message size validation (4KB limit)."""
     large_message = "x" * 5000  # > 4KB
 
-    response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": large_message}
-    )
+    response = client.post("/api/v1/chat", json={"conversation_id": None, "message": large_message})
 
     assert response.status_code == 422  # Validation error
     data = response.json()
@@ -122,25 +115,19 @@ def test_chat_message_4kb_utf8_boundary(client):
     """Test 4KB UTF-8 boundary conditions."""
     # Test exactly 4KB (4096 bytes) with ASCII - should pass
     ascii_4kb = "a" * 4096
-    response = client.post(
-        "/api/v1/chat",
-        json={"message": ascii_4kb}
-    )
+    response = client.post("/api/v1/chat", json={"message": ascii_4kb})
     assert response.status_code == 200, "Exactly 4KB ASCII should be accepted"
 
     # Test exactly 4KB (4096 bytes) with UTF-8 multibyte chars - should pass
     # Using 'é' (2 bytes in UTF-8) to create exactly 4KB
     utf8_char = "é"  # 2 bytes in UTF-8
-    padding = "a" * (4096 - len(utf8_char.encode('utf-8')))  # Fill remaining bytes with ASCII
+    padding = "a" * (4096 - len(utf8_char.encode("utf-8")))  # Fill remaining bytes with ASCII
     utf8_4kb = utf8_char + padding
 
     # Verify it's exactly 4KB
-    assert len(utf8_4kb.encode('utf-8')) == 4096, "UTF-8 message should be exactly 4096 bytes"
+    assert len(utf8_4kb.encode("utf-8")) == 4096, "UTF-8 message should be exactly 4096 bytes"
 
-    response = client.post(
-        "/api/v1/chat",
-        json={"message": utf8_4kb}
-    )
+    response = client.post("/api/v1/chat", json={"message": utf8_4kb})
     assert response.status_code == 200, "Exactly 4KB UTF-8 should be accepted"
 
     # Test >4KB with multibyte characters - should fail
@@ -149,21 +136,15 @@ def test_chat_message_4kb_utf8_boundary(client):
     over_4kb_utf8 = utf8_3byte * 1366  # 1366 * 3 = 4098 bytes > 4096
 
     # Verify it exceeds 4KB
-    assert len(over_4kb_utf8.encode('utf-8')) > 4096, "UTF-8 message should exceed 4096 bytes"
+    assert len(over_4kb_utf8.encode("utf-8")) > 4096, "UTF-8 message should exceed 4096 bytes"
 
-    response = client.post(
-        "/api/v1/chat",
-        json={"message": over_4kb_utf8}
-    )
+    response = client.post("/api/v1/chat", json={"message": over_4kb_utf8})
     assert response.status_code == 422, "Messages >4KB should be rejected"
 
 
 def test_chat_empty_message(client):
     """Test empty message validation."""
-    response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": ""}
-    )
+    response = client.post("/api/v1/chat", json={"conversation_id": None, "message": ""})
 
     # Should succeed with empty string (API accepts any string)
     # The engine will handle it appropriately
@@ -172,10 +153,7 @@ def test_chat_empty_message(client):
 
 def test_response_headers(client):
     """Test response includes X-Request-Id header."""
-    response = client.post(
-        "/api/v1/chat",
-        json={"conversation_id": None, "message": "Hello"}
-    )
+    response = client.post("/api/v1/chat", json={"conversation_id": None, "message": "Hello"})
 
     assert response.status_code == 200
     assert "X-Request-Id" in response.headers
@@ -192,7 +170,7 @@ def test_request_id_propagation(client):
     response = client.post(
         "/api/v1/chat",
         json={"conversation_id": None, "message": "Hello"},
-        headers={"X-Request-Id": test_request_id}
+        headers={"X-Request-Id": test_request_id},
     )
 
     assert response.status_code == 200
@@ -206,10 +184,7 @@ def test_deterministic_responses(client):
     # Make same request multiple times
     responses = []
     for _ in range(3):
-        response = client.post(
-            "/api/v1/chat",
-            json={"conversation_id": None, "message": message}
-        )
+        response = client.post("/api/v1/chat", json={"conversation_id": None, "message": message})
         assert response.status_code == 200
         responses.append(response.json())
 

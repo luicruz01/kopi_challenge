@@ -19,7 +19,7 @@ class TestOppositeStance:
         # Strong pro-technology message
         response = client.post(
             "/api/v1/chat",
-            json={"message": "Technology is amazing and will improve our lives significantly"}
+            json={"message": "Technology is amazing and will improve our lives significantly"},
         )
 
         assert response.status_code == 200
@@ -28,13 +28,21 @@ class TestOppositeStance:
 
         # Bot should take opposing stance - look for contra indicators
         contra_indicators = [
-            "serious issues", "careful consideration", "concerns that cannot be ignored",
-            "challenges that outweigh", "problems", "risks", "dangers"
+            "serious issues",
+            "careful consideration",
+            "concerns that cannot be ignored",
+            "challenges that outweigh",
+            "problems",
+            "risks",
+            "dangers",
         ]
 
         pro_indicators = [
-            "beneficial and necessary", "crucial advancement", "indispensable benefits",
-            "fundamentally beneficial", "represents progress"
+            "beneficial and necessary",
+            "crucial advancement",
+            "indispensable benefits",
+            "fundamentally beneficial",
+            "represents progress",
         ]
 
         contra_found = any(indicator in bot_message for indicator in contra_indicators)
@@ -48,7 +56,7 @@ class TestOppositeStance:
         # Strong contra-technology message
         response = client.post(
             "/api/v1/chat",
-            json={"message": "Technology is dangerous and harmful to society, we should limit it"}
+            json={"message": "Technology is dangerous and harmful to society, we should limit it"},
         )
 
         assert response.status_code == 200
@@ -57,8 +65,11 @@ class TestOppositeStance:
 
         # Bot should take supporting stance - look for pro indicators
         pro_indicators = [
-            "beneficial and necessary", "crucial advancement", "indispensable benefits",
-            "fundamentally beneficial", "represents progress"
+            "beneficial and necessary",
+            "crucial advancement",
+            "indispensable benefits",
+            "fundamentally beneficial",
+            "represents progress",
         ]
 
         pro_found = any(indicator in bot_message for indicator in pro_indicators)
@@ -69,7 +80,7 @@ class TestOppositeStance:
         # Start with pro-climate message
         response1 = client.post(
             "/api/v1/chat",
-            json={"message": "Climate action is essential and renewable energy is the future"}
+            json={"message": "Climate action is essential and renewable energy is the future"},
         )
 
         assert response1.status_code == 200
@@ -77,29 +88,47 @@ class TestOppositeStance:
         bot_message1 = response1.json()["message"][-1]["message"].lower()
 
         # Should be contra climate initially
-        initial_contra = any(phrase in bot_message1 for phrase in ["serious issues", "concerns", "challenges"])
-        initial_pro = any(phrase in bot_message1 for phrase in ["beneficial", "advancement", "benefits"])
+        initial_contra = any(
+            phrase in bot_message1 for phrase in ["serious issues", "concerns", "challenges"]
+        )
+        initial_pro = any(
+            phrase in bot_message1 for phrase in ["beneficial", "advancement", "benefits"]
+        )
 
         # Continue conversation - bot should maintain same stance
         response2 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "Solar and wind power are clean and sustainable"}
+            json={
+                "conversation_id": conv_id,
+                "message": "Solar and wind power are clean and sustainable",
+            },
         )
 
         response3 = client.post(
             "/api/v1/chat",
-            json={"conversation_id": conv_id, "message": "We must transition away from fossil fuels"}
+            json={
+                "conversation_id": conv_id,
+                "message": "We must transition away from fossil fuels",
+            },
         )
 
         bot_message2 = response2.json()["message"][-1]["message"].lower()
         bot_message3 = response3.json()["message"][-1]["message"].lower()
 
         # Check stance consistency
-        msg2_contra = any(phrase in bot_message2 for phrase in ["serious issues", "concerns", "challenges"])
-        msg2_pro = any(phrase in bot_message2 for phrase in ["beneficial", "advancement", "benefits"])
+        msg2_contra = any(
+            phrase in bot_message2 for phrase in ["serious issues", "concerns", "challenges"]
+        )
+        msg2_pro = any(
+            phrase in bot_message2 for phrase in ["beneficial", "advancement", "benefits"]
+        )
 
-        msg3_contra = any(phrase in bot_message3 for phrase in ["serious issues", "concerns", "challenges"])
-        msg3_pro = any(phrase in bot_message3 for phrase in ["beneficial", "advancement", "benefits"])
+        msg3_contra = any(
+            phrase in bot_message3 for phrase in ["serious issues", "concerns", "challenges"]
+        )
+        msg3_pro = any(
+            phrase in bot_message3 for phrase in ["beneficial", "advancement", "benefits"]
+        )
 
         # Stance should be consistent across all messages
         if initial_contra and not initial_pro:
@@ -116,7 +145,7 @@ class TestOppositeStance:
         # Pro-technology message in Spanish
         response = client.post(
             "/api/v1/chat",
-            json={"message": "La tecnología es excelente y beneficiosa para la humanidad"}
+            json={"message": "La tecnología es excelente y beneficiosa para la humanidad"},
         )
 
         assert response.status_code == 200
@@ -142,7 +171,9 @@ class TestOppositeStance:
         # Message with negations should be detected as contra
         response = client.post(
             "/api/v1/chat",
-            json={"message": "I don't think technology is not beneficial, it has no real advantages"}
+            json={
+                "message": "I don't think technology is not beneficial, it has no real advantages"
+            },
         )
 
         assert response.status_code == 200
@@ -151,4 +182,6 @@ class TestOppositeStance:
         # User was contra (due to negations), so bot should be pro
         pro_indicators = ["beneficial", "advancement", "benefits", "progress"]
         pro_found = any(indicator in bot_message for indicator in pro_indicators)
-        assert pro_found, f"Expected pro stance against user's negated contra position: {bot_message}"
+        assert (
+            pro_found
+        ), f"Expected pro stance against user's negated contra position: {bot_message}"

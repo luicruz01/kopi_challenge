@@ -40,9 +40,9 @@ def test_readiness_check_without_redis(client):
 async def test_readiness_check_with_redis_healthy():
     """Test /readyz endpoint with healthy Redis."""
     # Mock a healthy Redis store
-    with patch('api.main.REDIS_URL', 'redis://localhost:6379'), \
-         patch('api.main.store') as mock_store:
-
+    with patch("api.main.REDIS_URL", "redis://localhost:6379"), patch(
+        "api.main.store"
+    ) as mock_store:
         # Mock store health check to return True
         mock_store.health_check = AsyncMock(return_value=True)
 
@@ -60,9 +60,9 @@ async def test_readiness_check_with_redis_healthy():
 async def test_readiness_check_with_redis_unhealthy():
     """Test /readyz endpoint with unhealthy Redis."""
     # Mock an unhealthy Redis store
-    with patch('api.main.REDIS_URL', 'redis://localhost:6379'), \
-         patch('api.main.store') as mock_store:
-
+    with patch("api.main.REDIS_URL", "redis://localhost:6379"), patch(
+        "api.main.store"
+    ) as mock_store:
         # Mock store health check to return False
         mock_store.health_check = AsyncMock(return_value=False)
 
@@ -80,9 +80,9 @@ async def test_readiness_check_with_redis_unhealthy():
 async def test_readiness_check_with_redis_exception():
     """Test /readyz endpoint when Redis check raises exception."""
     # Mock Redis store that raises exception
-    with patch('api.main.REDIS_URL', 'redis://localhost:6379'), \
-         patch('api.main.store') as mock_store:
-
+    with patch("api.main.REDIS_URL", "redis://localhost:6379"), patch(
+        "api.main.store"
+    ) as mock_store:
         # Mock store health check to raise exception
         mock_store.health_check = AsyncMock(side_effect=Exception("Connection failed"))
 
@@ -136,9 +136,11 @@ def test_metrics_endpoint_disabled(client):
 
 
 @pytest.mark.skipif(
-    not hasattr(__import__('api.observability', fromlist=['PROMETHEUS_AVAILABLE']), 'PROMETHEUS_AVAILABLE') or
-    not __import__('api.observability', fromlist=['PROMETHEUS_AVAILABLE']).PROMETHEUS_AVAILABLE,
-    reason="Prometheus client not available"
+    not hasattr(
+        __import__("api.observability", fromlist=["PROMETHEUS_AVAILABLE"]), "PROMETHEUS_AVAILABLE"
+    )
+    or not __import__("api.observability", fromlist=["PROMETHEUS_AVAILABLE"]).PROMETHEUS_AVAILABLE,
+    reason="Prometheus client not available",
 )
 def test_metrics_endpoint_enabled(client):
     """Test /metrics endpoint when metrics are enabled."""
@@ -192,7 +194,7 @@ def test_cors_headers(client):
     response = client.post(
         "/api/v1/chat",
         json={"conversation_id": None, "message": "test"},
-        headers={"Origin": "http://example.com"}
+        headers={"Origin": "http://example.com"},
     )
 
     # Should have CORS headers
