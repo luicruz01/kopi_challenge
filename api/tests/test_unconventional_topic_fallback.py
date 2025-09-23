@@ -115,12 +115,24 @@ class TestUnconventionalTopicFallback:
         bot_message2 = response2.json()["message"][-1]["message"].lower()
         bot_message3 = response3.json()["message"][-1]["message"].lower()
 
-        # All should acknowledge subjectivity and maintain consistent stance
+        # All should acknowledge subjectivity or use structural variety that handles unconventional topics
         for msg in [bot_message1, bot_message2, bot_message3]:
-            subjectivity_found = any(
-                phrase in msg for phrase in ["subjective", "preference", "personal"]
+            subjectivity_acknowledgment = any(
+                phrase in msg
+                for phrase in [
+                    "subjective",
+                    "preference",
+                    "personal",
+                    "opinion",
+                    "understand you might see",
+                    "can accept that many",
+                    "may seem like",
+                    "view this as",
+                ]
             )
-            assert subjectivity_found, f"Should acknowledge subjectivity: {msg}"
+            assert (
+                subjectivity_acknowledgment
+            ), f"Should acknowledge subjectivity or use appropriate opening: {msg}"
 
         # Check for stance consistency (all should have similar opposing or supporting tone)
         stance_indicators = {
@@ -245,9 +257,23 @@ class TestUnconventionalTopicFallback:
         claim_found = any(claim in bot_message.lower() for claim in claim_indicators)
         assert claim_found, f"Should quote user's claim: {bot_message}"
 
-        # Should be in refutation format
-        refutation_format = any(
+        # Should be in refutation format (either old format or new claim mapping format)
+        old_refutation_format = any(
             phrase in bot_message.lower()
             for phrase in ["while you mention", "although you", "your mention of"]
         )
-        assert refutation_format, f"Should use refutation format: {bot_message}"
+
+        new_refutation_format = any(
+            phrase in bot_message.lower()
+            for phrase in [
+                "but this perspective overlooks",
+                "your main claim is that",
+                "but this overlooks",
+                "yet this perspective misses",
+                "though this fails to account",
+            ]
+        )
+
+        assert (
+            old_refutation_format or new_refutation_format
+        ), f"Should use refutation format (old or new): {bot_message}"

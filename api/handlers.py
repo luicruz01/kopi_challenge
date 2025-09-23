@@ -4,7 +4,16 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from .lexicon import CLOSING_PHRASES, CONTENT_BANKS, LANGUAGE_MARKERS, REASONING_PHRASES, TOPIC_DATA
+from .lexicon import (
+    CLAIM_MAPPINGS,
+    CLOSING_PHRASES,
+    CONTENT_BANKS,
+    EXAMPLE_BANKS,
+    LANGUAGE_MARKERS,
+    REASONING_PHRASES,
+    STRUCTURAL_BANKS,
+    TOPIC_DATA,
+)
 from .models import ChatRequest, ChatResponse, Turn
 from .storage import ConversationStore
 from .utils import stable_index
@@ -19,6 +28,9 @@ class DebateEngine:
         self.reasoning_phrases = REASONING_PHRASES
         self.closing_phrases = CLOSING_PHRASES
         self.topic_data = TOPIC_DATA
+        self.structural_banks = STRUCTURAL_BANKS
+        self.example_banks = EXAMPLE_BANKS
+        self.claim_mappings = CLAIM_MAPPINGS
 
     def detect_lang(self, text: str) -> str:
         """Detect language using simple heuristics - returns 'es' or 'en'."""
@@ -165,6 +177,54 @@ class DebateEngine:
 
         return longest_clause or ("su punto" if lang == "es" else "your point")
 
+    def map_claim(self, text: str, lang: str) -> str:
+        """Map common claim patterns to standardized refutation phrases."""
+        text_lower = text.lower()
+
+        # Try to match patterns in claim mappings
+        for pattern, mapped_claim in self.claim_mappings[lang].items():
+            if re.search(pattern, text_lower):
+                return mapped_claim
+
+        # Fallback to original extraction logic
+        return self.extract_claim(text, lang)
+
+    def should_include_example(self, text: str, lang: str) -> bool:
+        """Check if user message requests an example."""
+        text_lower = text.lower()
+
+        if lang == "es":
+            example_keywords = ["ejemplo", "ejemplos", "por ejemplo", "dame un ejemplo"]
+        else:
+            example_keywords = ["example", "examples", "for example", "give me an example"]
+
+        return any(keyword in text_lower for keyword in example_keywords)
+
+    def get_example_sentence(
+        self, topic: str, lang: str, seed: str, conversation_history: list[Turn]
+    ) -> str:
+        """Get an example sentence for the topic with rotation to avoid repetition."""
+        examples = self.example_banks[lang].get(topic, self.example_banks[lang]["general"])
+
+        # Get the base choice
+        choice_index = stable_index(seed, len(examples), salt="example")
+
+        # Check last bot turn for example repetition
+        if len(conversation_history) >= 2:
+            last_bot_turn = None
+            for turn in reversed(conversation_history):
+                if turn.role == "bot":
+                    last_bot_turn = turn
+                    break
+
+            if last_bot_turn:
+                current_example = examples[choice_index]
+                if current_example in last_bot_turn.message:
+                    # Rotate to next example deterministically
+                    choice_index = (choice_index + 1) % len(examples)
+
+        return examples[choice_index]
+
     def _get_deterministic_choice(self, options: list[str], seed: str) -> str:
         """Get deterministic choice from options based on seed."""
         index = stable_index(seed, len(options))
@@ -238,86 +298,84 @@ class DebateEngine:
 
         return phrases[choice_index]
 
+    def _get_rotated_structural_element(
+        self, element_type: str, lang: str, seed: str, conversation_history: list[Turn]
+    ) -> str:
+        """Get structural element (opening, body, closing) with rotation to avoid immediate repetition."""
+        elements = self.structural_banks[lang][element_type]
+
+        # Get the base choice
+        choice_index = stable_index(seed, len(elements), salt=element_type)
+
+        # Check last bot turn for element repetition
+        if len(conversation_history) >= 2:
+            last_bot_turn = None
+            for turn in reversed(conversation_history):
+                if turn.role == "bot":
+                    last_bot_turn = turn
+                    break
+
+            if last_bot_turn:
+                current_element = elements[choice_index]
+                if current_element in last_bot_turn.message:
+                    # Rotate to next element deterministically
+                    choice_index = (choice_index + 1) % len(elements)
+
+        return elements[choice_index]
+
     def _generate_unconventional_topic_response(
         self, stance: str, user_message: str, conversation_history: list[Turn], lang: str
     ) -> str:
-        """Generate fallback response for unconventional/subjective topics."""
-        # Extract subject from user message for context
-        claim = self.extract_claim(user_message, lang)
-
-        # Acknowledge subjectivity/atypical nature
-        if lang == "es":
-            acknowledgment = (
-                "Reconozco que se trata de un tema subjetivo y de preferencias personales."
-            )
-            stance_intro = (
-                "Sin embargo, mantengo mi posición de que"
-                if stance == "opposing"
-                else "Apoyo firmemente que"
-            )
-        else:
-            acknowledgment = "I recognize this is a subjective matter of personal preference."
-            stance_intro = (
-                "However, I maintain that" if stance == "opposing" else "I firmly support that"
-            )
-
-        # Generic but relevant arguments based on stance
-        if stance == "opposing":
-            if lang == "es":
-                generic_args = [
-                    "las tradiciones y estándares establecidos tienen valor por una razón",
-                    "la consistencia en nuestras elecciones refleja principios sólidos",
-                    "no todas las innovaciones o cambios representan mejoras reales",
-                ]
-            else:
-                generic_args = [
-                    "established traditions and standards have value for a reason",
-                    "consistency in our choices reflects solid principles",
-                    "not all innovations or changes represent real improvements",
-                ]
-        else:
-            if lang == "es":
-                generic_args = [
-                    "la diversidad de opciones enriquece nuestras experiencias",
-                    "la apertura a diferentes enfoques fomenta el crecimiento personal",
-                    "las preferencias individuales merecen respeto y consideración",
-                ]
-            else:
-                generic_args = [
-                    "diversity of options enriches our experiences",
-                    "openness to different approaches fosters personal growth",
-                    "individual preferences deserve respect and consideration",
-                ]
-
-        # Select argument deterministically
+        """Generate fallback response for unconventional/subjective topics with structural variety."""
         turn_count = len([t for t in conversation_history if t.role == "bot"])
-        arg_seed = f"unconventional_{turn_count}_{user_message[:20]}"
-        selected_arg = self._get_deterministic_choice(generic_args, arg_seed)
+        seed_base = f"unconventional_{turn_count}_{user_message[:20]}"
 
-        # Build response
-        reasoning_seed = f"unconventional_reasoning_{turn_count}"
+        # 1. Opening with structural variety
+        opening_seed = f"{seed_base}_opening"
+        opening = self._get_rotated_structural_element(
+            "openings", lang, opening_seed, conversation_history
+        )
+
+        # 2. Body with structural variety
+        body_seed = f"{seed_base}_body"
+        body = self._get_rotated_structural_element("bodies", lang, body_seed, conversation_history)
+
+        # 3. Reasoning phrase
+        reasoning_seed = f"{seed_base}_reasoning"
         reasoning = self._get_rotated_phrase(
             self.reasoning_phrases[lang], reasoning_seed, conversation_history
         )
 
-        closing_seed = f"unconventional_closing_{turn_count}"
-        closing = self._get_rotated_phrase(
-            self.closing_phrases[lang], closing_seed, conversation_history
-        )
+        # 4. Better claim refutation using mapping
+        mapped_claim = self.map_claim(user_message, lang)
 
-        # Refutation using extracted claim
+        # Build refutation with mapped claim
         if lang == "es":
-            refutation = f'Aunque mencionas que "{claim}", esta perspectiva pasa por alto consideraciones importantes.'
-        else:
             refutation = (
-                f'While you mention "{claim}", this perspective overlooks important considerations.'
+                f"{mapped_claim}, pero esta perspectiva pasa por alto consideraciones importantes."
+            )
+        else:
+            refutation = f"{mapped_claim}, but this perspective overlooks important considerations."
+
+        # 5. Example sentence if requested
+        example_sentence = ""
+        if self.should_include_example(user_message, lang):
+            example_seed = f"{seed_base}_example"
+            example_sentence = " " + self.get_example_sentence(
+                "general", lang, example_seed, conversation_history
             )
 
-        return (
-            f"{acknowledgment} {stance_intro} {selected_arg}. En términos generales, {reasoning}. {refutation} {closing}"
-            if lang == "es"
-            else f"{acknowledgment} {stance_intro} {selected_arg}. Generally speaking, {reasoning}. {refutation} {closing}"
+        # 6. Closing with structural variety
+        closing_seed = f"{seed_base}_closing"
+        closing = self._get_rotated_structural_element(
+            "closings", lang, closing_seed, conversation_history
         )
+
+        # Combine all parts with proper sentence structure
+        if lang == "es":
+            return f"{opening} {body}. En términos generales, {reasoning}. {refutation}{example_sentence} {closing}"
+        else:
+            return f"{opening} {body}. Generally speaking, {reasoning}. {refutation}{example_sentence} {closing}"
 
     def generate_response(
         self,
@@ -400,28 +458,37 @@ class DebateEngine:
         question = self._get_deterministic_choice(topic_data["questions"], question_seed)
         question_text = question_template.format(question=question)
 
-        # 5. Better refutation using extracted claim
+        # 5. Better refutation using claim mapping
+        refutation_seed = f"{seed}_refutation"
+        mapped_claim = self.map_claim(user_message, lang)
+
         refutation_templates = {
             "en": [
-                'Your claim that "{claim}" overlooks the broader context.',
-                'While you mention "{claim}", this perspective misses key considerations.',
-                'The argument that "{claim}" fails to account for important factors.',
+                f"{mapped_claim}, but this overlooks the broader context.",
+                f"{mapped_claim}, yet this perspective misses key considerations.",
+                f"{mapped_claim}, though this fails to account for important factors.",
             ],
             "es": [
-                'Tu afirmación de que "{claim}" pasa por alto el contexto más amplio.',
-                'Aunque mencionas que "{claim}", esta perspectiva pierde consideraciones clave.',
-                'El argumento de que "{claim}" no tiene en cuenta factores importantes.',
+                f"{mapped_claim}, pero esto pasa por alto el contexto más amplio.",
+                f"{mapped_claim}, aunque esta perspectiva pierde consideraciones clave.",
+                f"{mapped_claim}, pero esto no tiene en cuenta factores importantes.",
             ],
         }
 
-        refutation_seed = f"{seed}_refutation"
-        claim = self.extract_claim(user_message, lang)
         refutation_template = self._get_deterministic_choice(
             refutation_templates[lang], refutation_seed
         )
-        refutation = refutation_template.format(claim=claim)
+        refutation = refutation_template
 
-        # 6. Conclusion with rotated phrases
+        # 6. Example sentence if requested
+        example_sentence = ""
+        if self.should_include_example(user_message, lang):
+            example_seed = f"{seed}_example"
+            example_sentence = " " + self.get_example_sentence(
+                topic, lang, example_seed, conversation_history
+            )
+
+        # 7. Conclusion with rotated phrases
         close_seed = f"{seed}_close"
         conclusion = self._get_rotated_phrase(
             self.closing_phrases[lang], close_seed, conversation_history
@@ -429,7 +496,9 @@ class DebateEngine:
 
         # Combine all parts
         response_parts = (
-            [anchor] + arguments + [analogy_text, question_text, refutation, conclusion]
+            [anchor]
+            + arguments
+            + [analogy_text, question_text, refutation + example_sentence, conclusion]
         )
         response_text = " ".join(response_parts)
 

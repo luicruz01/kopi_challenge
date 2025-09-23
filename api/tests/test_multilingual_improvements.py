@@ -321,18 +321,29 @@ class TestClaimExtraction:
         found_claim = any(indicator in bot_message.lower() for indicator in claim_indicators)
         assert found_claim, f"Expected extracted claim in refutation: {bot_message}"
 
-        # Should use proper claim extraction format (not old generic fragments)
+        # Should use either mapped claims or proper claim extraction format
+        has_mapped_claim = any(
+            phrase in bot_message.lower()
+            for phrase in [
+                "your main claim is that",
+                "but this overlooks",
+                "yet this perspective misses",
+                "though this fails to account",
+            ]
+        )
+
         proper_extraction = (
             "the argument that" in bot_message.lower() or "your claim that" in bot_message.lower()
         ) and '"' in bot_message  # Should contain quoted claim
+
         old_style_extraction = (
             "your point about i believe" in bot_message.lower()
             or "while you mention i believe" in bot_message.lower()
         )
 
-        assert (
+        assert has_mapped_claim or (
             proper_extraction and not old_style_extraction
-        ), f"Should use new claim extraction format: {bot_message}"
+        ), f"Should use new claim mapping or extraction format: {bot_message}"
 
     def test_claim_extraction_spanish(self, client):
         """Test that bot extracts and refutes actual claims in Spanish."""

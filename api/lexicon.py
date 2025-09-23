@@ -1,6 +1,122 @@
 """Content lexicon for multilingual debate responses."""
 from typing import Any
 
+# Structural variety banks for deterministic response construction
+STRUCTURAL_BANKS: dict[str, dict[str, list[str]]] = {
+    "en": {
+        "openings": [
+            "I understand you might see this as subjective, but",
+            "While this may seem like a personal preference, I believe",
+            "I can accept that many view this as opinion; however",
+        ],
+        "bodies": [
+            "the established principles offer clear guidance here",
+            "traditional approaches have proven their worth over time",
+            "consistent standards provide the most reliable framework",
+        ],
+        "closings": [
+            "This perspective demands careful reconsideration.",
+            "Ignoring these points would be shortsighted.",
+            "That's why the issue remains deeply contested.",
+        ],
+    },
+    "es": {
+        "openings": [
+            "Comprendo que lo plantees como subjetivo, pero",
+            "Es cierto que puede sonar personal, aunque",
+            "Puedo aceptar que muchos lo vean así; sin embargo",
+        ],
+        "bodies": [
+            "los principios establecidos ofrecen orientación clara aquí",
+            "los enfoques tradicionales han demostrado su valor a lo largo del tiempo",
+            "los estándares consistentes proporcionan el marco más confiable",
+        ],
+        "closings": [
+            "Esta perspectiva exige una reconsideración cuidadosa.",
+            "Ignorar estos puntos sería miope.",
+            "Por eso el tema sigue siendo profundamente controvertido.",
+        ],
+    },
+}
+
+# Example banks per topic and language
+EXAMPLE_BANKS: dict[str, dict[str, list[str]]] = {
+    "en": {
+        "spirituality": [
+            "For example, meditation practices have been shown to reduce stress and improve mental health.",
+            "A concrete case is grief rituals that help people process loss and find meaning.",
+            "Consider how spiritual communities provide social support during difficult times.",
+        ],
+        "technology": [
+            "For example, factory automation has displaced entire categories of jobs.",
+            "A clear case is social media shaping public discourse and political opinions.",
+            "Consider how algorithms now influence what information we see daily.",
+        ],
+        "climate": [
+            "For example, rising sea levels threaten coastal cities worldwide.",
+            "A concrete case is extreme weather patterns disrupting agriculture.",
+            "Consider how carbon emissions continue accelerating despite awareness campaigns.",
+        ],
+        "education": [
+            "For example, standardized testing often narrows curriculum focus.",
+            "A clear case is how student debt affects career choices and life decisions.",
+            "Consider how educational inequality perpetuates social stratification.",
+        ],
+        "general": [
+            "For example, rapid changes often have unintended consequences.",
+            "A concrete case is how innovation can disrupt established systems.",
+            "Consider how different approaches serve different needs and contexts.",
+        ],
+    },
+    "es": {
+        "spirituality": [
+            "Por ejemplo, prácticas como la meditación han demostrado reducir el estrés y mejorar la salud mental.",
+            "Un ejemplo concreto son los rituales de duelo que ayudan a procesar pérdidas y encontrar sentido.",
+            "Considera cómo las comunidades espirituales brindan apoyo social durante tiempos difíciles.",
+        ],
+        "technology": [
+            "Por ejemplo, la automatización industrial ha desplazado categorías completas de empleos.",
+            "Un caso claro es cómo las redes sociales moldean el discurso público y las opiniones políticas.",
+            "Considera cómo los algoritmos ahora influyen en qué información vemos diariamente.",
+        ],
+        "climate": [
+            "Por ejemplo, el aumento del nivel del mar amenaza ciudades costeras mundialmente.",
+            "Un caso concreto son los patrones climáticos extremos que interrumpen la agricultura.",
+            "Considera cómo las emisiones de carbono siguen acelerándose a pesar de las campañas de concienciación.",
+        ],
+        "education": [
+            "Por ejemplo, las pruebas estandarizadas a menudo estrechan el enfoque curricular.",
+            "Un caso claro es cómo la deuda estudiantil afecta las decisiones profesionales y de vida.",
+            "Considera cómo la desigualdad educativa perpetúa la estratificación social.",
+        ],
+        "general": [
+            "Por ejemplo, los cambios rápidos a menudo tienen consecuencias no intencionadas.",
+            "Un caso concreto es cómo la innovación puede alterar sistemas establecidos.",
+            "Considera cómo diferentes enfoques sirven diferentes necesidades y contextos.",
+        ],
+    },
+}
+
+# Claim mapping patterns for better refutations
+CLAIM_MAPPINGS: dict[str, dict[str, str]] = {
+    "en": {
+        r"subjective|evidence|scientific": "Your main claim is that it lacks scientific evidence",
+        r"waste of time|waste.*time": "Your main claim is that it's a waste of time",
+        r"not important|unimportant": "Your main claim is that it's not important",
+        r"too expensive|costly": "Your main claim is that it's too expensive",
+        r"doesn't work|ineffective": "Your main claim is that it doesn't work",
+        r"dangerous|harmful": "Your main claim is that it's dangerous or harmful",
+    },
+    "es": {
+        r"subjetivo|evidencia|científico": "Tu argumento central es que carece de evidencia científica",
+        r"perdida de tiempo|perdida.*tiempo": "Tu argumento central es que es un uso inútil del tiempo",
+        r"no.*importante|sin importancia": "Tu argumento central es que no es importante",
+        r"muy caro|costoso": "Tu argumento central es que es muy costoso",
+        r"no funciona|ineficaz": "Tu argumento central es que no funciona",
+        r"peligroso|dañino": "Tu argumento central es que es peligroso o dañino",
+    },
+}
+
 # Content banks per language for deterministic variety
 CONTENT_BANKS: dict[str, dict[str, Any]] = {
     "en": {
@@ -174,6 +290,38 @@ TOPIC_DATA: dict[str, dict[str, dict[str, list[str]]]] = {
                 "learning is valuable",
             ],
         },
+        "spirituality": {
+            "keywords": [
+                "spiritual",
+                "spirituality",
+                "religion",
+                "meditation",
+                "prayer",
+                "faith",
+                "belief",
+                "soul",
+                "God",
+                "divine",
+                "sacred",
+                "mindfulness",
+            ],
+            "arguments": [
+                "mental health benefits",
+                "community building",
+                "meaning and purpose provision",
+            ],
+            "analogies": [
+                "maintaining physical health",
+                "cultivating relationships",
+                "developing skills through practice",
+            ],
+            "principles": ["holistic well-being", "community connection", "personal growth"],
+            "questions": [
+                "inner peace has no value",
+                "community support matters",
+                "personal meaning is important",
+            ],
+        },
         "general": {
             "keywords": [],
             "arguments": ["practical benefits", "long-term implications", "societal impact"],
@@ -265,6 +413,39 @@ TOPIC_DATA: dict[str, dict[str, dict[str, list[str]]]] = {
                 "el aprendizaje es valioso",
             ],
         },
+        "spirituality": {
+            "keywords": [
+                "espiritual",
+                "espiritualidad",
+                "religión",
+                "meditación",
+                "oración",
+                "fe",
+                "creencia",
+                "alma",
+                "Dios",
+                "divino",
+                "sagrado",
+                "consciencia",
+                "mindfulness",
+            ],
+            "arguments": [
+                "beneficios para la salud mental",
+                "construcción de comunidad",
+                "provisión de sentido y propósito",
+            ],
+            "analogies": [
+                "mantener la salud física",
+                "cultivar relaciones",
+                "desarrollar habilidades mediante práctica",
+            ],
+            "principles": ["bienestar holístico", "conexión comunitaria", "crecimiento personal"],
+            "questions": [
+                "la paz interior no tiene valor",
+                "el apoyo comunitario importa",
+                "el significado personal es importante",
+            ],
+        },
         "general": {
             "keywords": [],
             "arguments": ["beneficios prácticos", "implicaciones a largo plazo", "impacto social"],
@@ -323,6 +504,19 @@ LANGUAGE_MARKERS: dict[str, dict[str, list[str]]] = {
             "pienso",
             "hola",
             "gracias",
+            "dame",
+            "un",
+            "ejemplo",
+            "sobre",
+            "esto",
+            "eso",
+            "ese",
+            "esta",
+            "está",
+            "son",
+            "hay",
+            "no",
+            "es",
         ],
         "patterns": ["inteligencia artificial", "tecnología", "cambio climático", "educación"],
         "negation_markers": ["no", "nunca", "jamás", "sin", "nada", "ningún", "ninguna"],
