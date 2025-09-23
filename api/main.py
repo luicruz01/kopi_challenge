@@ -144,9 +144,25 @@ async def chat_endpoint(request: ChatRequest, req: Request) -> ChatResponse:
     handler = getattr(app.state, "chat_handler", None) or chat_handler
 
     if handler is None:
-        # Initialize dependencies if not done yet (useful for testing)
-        initialize_dependencies()
-        handler = chat_handler
+        try:
+            # Initialize dependencies if not done yet (useful for testing)
+            store_instance, handler_instance = initialize_dependencies()
+            handler = handler_instance
+
+            # Also set in app state for future requests
+            app.state.store = store_instance
+            app.state.chat_handler = handler_instance
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": {
+                        "code": "initialization_error",
+                        "message": f"Failed to initialize chat handler: {str(e)}",
+                        "trace_id": request_id,
+                    }
+                },
+            )
 
     if handler is None:
         raise HTTPException(
@@ -190,11 +206,15 @@ async def readiness_check():
     """Readiness probe - checks dependencies."""
     response_data = {"status": "ok"}
 
-    # Get store from app state or global
+    # Get store from app state or global, initialize if needed
     current_store = getattr(app.state, "store", None) or store
 
-    # Check Redis if configured
-    if REDIS_URL and current_store:
+    if current_store is None:
+        # Initialize dependencies if not done yet (useful for testing)
+        current_store, _ = initialize_dependencies()
+
+    # Check Redis if we have a RedisStore (REDIS_URL configured and store is Redis)
+    if REDIS_URL and current_store and hasattr(current_store, "redis"):
         try:
             redis_healthy = await current_store.health_check()
             response_data["deps"] = {"redis": "ok" if redis_healthy else "down"}
