@@ -157,8 +157,8 @@ The API automatically detects and locks the conversation language based on the *
 ### Topic Handling
 - **Topic is fixed** on the first turn of each conversation
 - **Supported topics**: technology, climate change, education (with bilingual keyword detection)
-- **Generic Comparator Engine**: Handles any "A vs B" or "A better than B" comparison with domain-agnostic arguments
-- **Unconventional topics**: Graceful fallback with subjectivity acknowledgment and generic arguments
+- **Generic Comparator Engine**: Handles any "A vs B" or "A better than B" comparison with domain-agnostic arguments (takes priority)
+- **Unconventional topics**: Graceful fallback with subjectivity acknowledgment and generic arguments for non-comparison topics
 - **Topic switches**: Bot acknowledges switches (with 2+ keyword threshold) but **stays focused** on the original topic
 - **To discuss a new topic**, start a new conversation
 

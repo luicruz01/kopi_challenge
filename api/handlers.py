@@ -133,7 +133,11 @@ class DebateEngine:
 
         detected_topic = "general"
         for topic, data in topics.items():
-            if any(keyword in message_lower for keyword in data["keywords"]):
+            # Use word boundaries to prevent false positives like "ai" in "explain"
+            if any(
+                re.search(r"\b" + re.escape(keyword) + r"\b", message_lower)
+                for keyword in data["keywords"]
+            ):
                 detected_topic = topic
                 break
 
@@ -443,6 +447,160 @@ class DebateEngine:
             return " ".join(words)
         return term
 
+    def _detect_existing_comparator_context(
+        self, conversation_history: list[Turn], lang: str
+    ) -> dict | None:
+        """
+        Detect if conversation already established a comparator context by looking at bot responses.
+
+        Returns:
+            dict with {a, b, user_side, bot_side} if comparator context exists, None otherwise
+        """
+        # Look for bot responses that indicate comparator context
+        for turn in conversation_history:
+            if turn.role == "bot":
+                # Check for comparator-specific phrases that indicate axes-based arguments
+                response_lower = turn.message.lower()
+
+                # Look for axis phrases that indicate comparator responses
+                axis_indicators = [
+                    "reduces friction",
+                    "adds extra steps",
+                    "more direct",
+                    "requires additional context",
+                    "easier to get started",
+                    "demands initial practice",
+                    "more intuitive",
+                    "steep curve",
+                    "prioritizes the essential",
+                    "scatters attention",
+                    "coherent long-term decisions",
+                    "ad hoc solutions",
+                    "adapts better",
+                    "structural rigidity",
+                    "immediate results",
+                    "minimizes interruptions",
+                    "micro-decisions",
+                ]
+
+                spanish_axis_indicators = [
+                    "reduce fricción",
+                    "añade pasos extra",
+                    "más directo",
+                    "requiere contexto adicional",
+                    "más fácil empezar",
+                    "exige práctica",
+                    "más intuitivo",
+                    "curva empinada",
+                    "prioriza lo esencial",
+                    "dispersa la atención",
+                    "decisiones coherentes",
+                    "soluciones ad hoc",
+                    "se adapta mejor",
+                    "rigidez estructural",
+                    "resultados inmediatos",
+                    "minimiza interrupciones",
+                    "microdecisiones",
+                ]
+
+                indicators = axis_indicators if lang == "en" else spanish_axis_indicators
+
+                if any(indicator in response_lower for indicator in indicators):
+                    # Extract the A and B terms from claim refutation patterns
+                    if lang == "es":
+                        claim_patterns = [
+                            r"tu idea central es que (.+?) supera a (.+?);",
+                            r"(.+?) vs (.+?), pero esto",
+                            r"(.+?) supera a (.+?); sostengo lo contrario",
+                        ]
+                    else:
+                        claim_patterns = [
+                            r"your core claim is that (.+?) beats (.+?);",
+                            r"(.+?) vs (.+?), but this",
+                            r"(.+?) beats (.+?); i maintain the opposite",
+                        ]
+
+                    for pattern in claim_patterns:
+                        match = re.search(pattern, response_lower)
+                        if match:
+                            a = match.group(1).strip()
+                            b = match.group(2).strip()
+
+                            # In bot response, we argued for B against A, so user_side=A, bot_side=B
+                            return {"a": a, "b": b, "user_side": a, "bot_side": b}
+
+        return None
+
+    def _handle_comparator_followup(
+        self,
+        comparator_context: dict,
+        user_message: str,
+        conversation_history: list[Turn],
+        lang: str,
+    ) -> str:
+        """
+        Handle follow-up messages in established comparator context.
+
+        Args:
+            comparator_context: Dict with {a, b, user_side, bot_side}
+            user_message: Current user message
+            conversation_history: Conversation history
+            lang: Language code
+        """
+        user_side = comparator_context["user_side"]
+        bot_side = comparator_context["bot_side"]
+
+        # Check if this is a new comparator pattern (user changing the comparison)
+        new_comparator_match = self.detect_comparator(user_message, lang)
+        if new_comparator_match:
+            return self.render_comparator_response(
+                new_comparator_match, user_message, conversation_history, lang
+            )
+
+        # Handle ambiguous follow-ups like "what?", "why?", "explain", etc.
+        turn_count = len([t for t in conversation_history if t.role == "bot"])
+        seed_base = f"comp_followup_{user_side}_{bot_side}_{turn_count}_{user_message[:10]}"
+
+        # 1. Opening
+        opening_seed = f"{seed_base}_opening"
+        opening_index = stable_index(
+            opening_seed, len(self.comp_openings[lang]), salt="followup_opening"
+        )
+        opening = self.comp_openings[lang][opening_index]
+
+        # 2. Clarification/reaffirmation with context
+        if lang == "es":
+            clarifications = [
+                f"Estaba explicando por qué {bot_side} es superior a {user_side}",
+                f"Mi argumento es que {bot_side} ofrece ventajas claras sobre {user_side}",
+                f"Sostengo que {bot_side} supera a {user_side} en aspectos fundamentales",
+            ]
+        else:
+            clarifications = [
+                f"I was explaining why {bot_side} is superior to {user_side}",
+                f"My argument is that {bot_side} offers clear advantages over {user_side}",
+                f"I maintain that {bot_side} surpasses {user_side} in fundamental ways",
+            ]
+
+        clarification_index = stable_index(seed_base, len(clarifications), salt="clarification")
+        clarification = clarifications[clarification_index]
+
+        # 3. Reinforce with one axis argument
+        axis_seed = f"{seed_base}_axis"
+        axis_index = stable_index(axis_seed, len(self.axes[lang]), salt="followup_axis")
+        axis_template = self.axes[lang][axis_index]
+        axis_text = axis_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
+
+        # 4. Closing
+        closing_seed = f"{seed_base}_closing"
+        closing_index = stable_index(
+            closing_seed, len(self.comp_closings[lang]), salt="followup_closing"
+        )
+        closing_template = self.comp_closings[lang][closing_index]
+        closing = closing_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
+
+        return f"{opening}, {clarification.lower()}. {axis_text} {closing}"
+
     def render_comparator_response(
         self, match: dict, user_message: str, conversation_history: list[Turn], lang: str
     ) -> str:
@@ -644,11 +802,19 @@ class DebateEngine:
         metadata: dict = None,
     ) -> str:
         """Generate deterministic multilingual debate response with variety."""
+
         # Check for comparator patterns first (before topic routing and generic fallback)
         comparator_match = self.detect_comparator(user_message, lang)
         if comparator_match:
             return self.render_comparator_response(
                 comparator_match, user_message, conversation_history, lang
+            )
+
+        # Check if conversation already established a comparator context
+        existing_comparator = self._detect_existing_comparator_context(conversation_history, lang)
+        if existing_comparator:
+            return self._handle_comparator_followup(
+                existing_comparator, user_message, conversation_history, lang
             )
 
         # Check for unconventional topic fallback
@@ -843,7 +1009,16 @@ class ChatHandler:
         user_turn = Turn(role="user", message=request.message)
         current_turns = existing_turns + [user_turn]
 
-        # Generate bot response
+        # Generate bot response - ensure we have metadata
+        if conversation_id not in self.conversations_metadata:
+            # Fallback: re-detect from current state if metadata lost
+            lang = self.engine.detect_lang(request.message)
+            self.conversations_metadata[conversation_id] = {
+                "topic": "general",
+                "stance": "opposing",
+                "lang": lang,
+            }
+
         metadata = self.conversations_metadata[conversation_id]
         bot_message = self.engine.generate_response(
             metadata["topic"],
