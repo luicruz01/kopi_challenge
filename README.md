@@ -157,9 +157,18 @@ The API automatically detects and locks the conversation language based on the *
 ### Topic Handling
 - **Topic is fixed** on the first turn of each conversation
 - **Supported topics**: technology, climate change, education (with bilingual keyword detection)
+- **Generic Comparator Engine**: Handles any "A vs B" or "A better than B" comparison with domain-agnostic arguments
 - **Unconventional topics**: Graceful fallback with subjectivity acknowledgment and generic arguments
 - **Topic switches**: Bot acknowledges switches (with 2+ keyword threshold) but **stays focused** on the original topic
 - **To discuss a new topic**, start a new conversation
+
+### Generic Comparator Engine
+The API features a powerful Generic Comparator Engine that can handle any comparison debate:
+- **Patterns supported**: "A vs B", "A better than B", "A superior to B", "prefer A to B"
+- **Languages**: Full support for English and Spanish comparison patterns
+- **Domain-agnostic**: Uses 10 generic axes (simplicity, consistency, accessibility, etc.) instead of topic-specific arguments
+- **Deterministic**: Same comparison always produces the same response with variety through rotation
+- **Opposite stance**: Always argues for the opposite side to foster debate
 
 ### Examples
 
@@ -200,6 +209,46 @@ curl -X POST http://localhost:8000/api/v1/chat \
   -d '{
     "message": "Creo que la tecnología es excelente y beneficiosa para la humanidad"
   }'
+```
+
+#### Generic Comparator Engine Examples
+
+##### English Comparisons
+```bash
+# Neutral comparison
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "coffee vs tea"
+  }'
+# Bot chooses a side deterministically and argues using generic axes
+
+# User preference comparison  
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "iPhone is better than Android"
+  }'
+# Bot argues for Android using axis-based arguments
+```
+
+##### Spanish Comparisons
+```bash
+# Spanish user preference
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Python es mejor que Java"
+  }'
+# Bot responds: "Tu idea central es que Python supera a Java; sostengo lo contrario por las razones anteriores"
+
+# Neutral Spanish comparison
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "gatos vs perros"
+  }'
+# Bot uses Spanish axes: "En simplicidad, perros reduce fricción; gatos añade pasos extra"
 ```
 
 ## Testing

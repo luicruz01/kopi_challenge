@@ -14,6 +14,7 @@ from .lexicon import (
     STRUCTURAL_BANKS,
     TOPIC_DATA,
 )
+from .lexicon_axes import AXES_EN, AXES_ES, CLOSINGS_EN, CLOSINGS_ES, EXAMPLES_EN, EXAMPLES_ES, OPENINGS_EN, OPENINGS_ES
 from .models import ChatRequest, ChatResponse, Turn
 from .storage import ConversationStore
 from .utils import stable_index
@@ -31,6 +32,10 @@ class DebateEngine:
         self.structural_banks = STRUCTURAL_BANKS
         self.example_banks = EXAMPLE_BANKS
         self.claim_mappings = CLAIM_MAPPINGS
+        self.axes = {"en": AXES_EN, "es": AXES_ES}
+        self.comp_openings = {"en": OPENINGS_EN, "es": OPENINGS_ES}
+        self.comp_closings = {"en": CLOSINGS_EN, "es": CLOSINGS_ES}
+        self.comp_examples = {"en": EXAMPLES_EN, "es": EXAMPLES_ES}
 
     def detect_lang(self, text: str) -> str:
         """Detect language using simple heuristics - returns 'es' or 'en'."""
@@ -323,6 +328,228 @@ class DebateEngine:
 
         return elements[choice_index]
 
+    def detect_comparator(self, text: str, lang: str) -> dict | None:
+        """
+        Detect generic comparator patterns (A vs B, A better than B).
+        
+        Returns:
+            dict with {a, b, preference} or None if no comparison detected
+            preference ∈ {a, b, None} where None means neutral "A vs B"
+        """
+        # Normalize text - lowercase, strip punctuation, collapse spaces
+        normalized = re.sub(r'[^\w\s]', ' ', text.lower())
+        normalized = ' '.join(normalized.split())
+
+        # Define comparison patterns for both languages
+        if lang == "es":
+            patterns = [
+                # "A vs B" or "A contra B" or "A frente a B"
+                r'(?P<a>[\w\s-]+?)\s+(?:vs|versus|contra|frente\s+a)\s+(?P<b>[\w\s-]+?)(?:\s|$)',
+                # "A es mejor que B" or variations
+                r'(?P<a>[\w\s-]+?)\s+(?:es\s*)?(?:mejor|superior)\s*(?:que|a)\s+(?P<b>[\w\s-]+?)(?:\s|$)',
+                # "prefiero A a B"
+                r'prefiero\s+(?P<a>[\w\s-]+?)\s+a\s+(?P<b>[\w\s-]+?)(?:\s|$)',
+            ]
+        else:
+            patterns = [
+                # "A vs B" or "A versus B"
+                r'(?P<a>[\w\s-]+?)\s+(?:vs|versus)\s+(?P<b>[\w\s-]+?)(?:\s|$)',
+                # "A is better than B" or "A better than B"  
+                r'(?P<a>[\w\s-]+?)\s+(?:is\s+)?(?:better|superior)\s*(?:than|to)\s+(?P<b>[\w\s-]+?)(?:\s|$)',
+                # "prefer A to B"
+                r'prefer\s+(?P<a>[\w\s-]+?)\s+to\s+(?P<b>[\w\s-]+?)(?:\s|$)',
+                # More specific patterns to extract the core items
+                r'(?:explain\s+why\s+)?(?P<a>[\w\s-]+?)\s+(?:is\s+)?(?:better|superior)\s+than\s+(?P<b>[\w\s-]+?)(?:\s|$)',
+            ]
+
+        for pattern in patterns:
+            match = re.search(pattern, normalized)
+            if match:
+                a_raw = match.group('a').strip()
+                b_raw = match.group('b').strip()
+                
+                # Clean up extracted terms
+                a = self._clean_comparator_term(a_raw)
+                b = self._clean_comparator_term(b_raw)
+                
+                # Skip if either side is too short or invalid
+                if len(a) < 2 or len(b) < 2 or a == b:
+                    continue
+                
+                # Determine preference based on pattern type
+                preference = None
+                if 'mejor' in pattern or 'better' in pattern or 'superior' in pattern or 'prefer' in pattern:
+                    # Patterns that indicate preference for A
+                    preference = 'a'
+                elif 'vs' in pattern or 'versus' in pattern or 'contra' in pattern or 'frente' in pattern:
+                    # Neutral comparison patterns
+                    preference = None
+                
+                return {
+                    'a': a,
+                    'b': b,
+                    'preference': preference
+                }
+        
+        return None
+
+    def _clean_comparator_term(self, term: str) -> str:
+        """Clean up extracted comparator terms by removing prefixes and stop words."""
+        # Remove common prefixes
+        prefixes_to_remove = [
+            'explain why', 'why', 'that', 'the', 'a', 'an', 
+            'explicar por que', 'por que', 'que', 'el', 'la', 'un', 'una'
+        ]
+        
+        term_lower = term.lower().strip()
+        for prefix in prefixes_to_remove:
+            if term_lower.startswith(prefix + ' '):
+                term = term[len(prefix):].strip()
+                term_lower = term.lower().strip()
+        
+        # Remove trailing articles and common words
+        suffixes_to_remove = ['the', 'a', 'an', 'el', 'la', 'un', 'una']
+        words = term.split()
+        while words and words[-1].lower() in suffixes_to_remove:
+            words.pop()
+        
+        if words:
+            return ' '.join(words)
+        return term
+
+    def render_comparator_response(
+        self, match: dict, user_message: str, conversation_history: list[Turn], lang: str
+    ) -> str:
+        """
+        Render response for generic comparator using axis-based arguments.
+        
+        Args:
+            match: Dict with {a, b, preference} from detect_comparator
+            user_message: User's input message
+            conversation_history: Conversation history for rotation logic
+            lang: Language code (en/es)
+        """
+        a = match["a"]
+        b = match["b"]
+        preference = match["preference"]
+        
+        # Determine sides and stance
+        if preference == "a":
+            # User prefers A, bot argues for B
+            user_side = a
+            bot_side = b
+        elif preference == "b":
+            # User prefers B, bot argues for A
+            user_side = b
+            bot_side = a
+        else:
+            # Neutral "A vs B" - choose bot side deterministically
+            bot_index = stable_index(f"{a}|{b}", 2)
+            if bot_index == 0:
+                bot_side = b
+                user_side = a
+            else:
+                bot_side = a
+                user_side = b
+        
+        turn_count = len([t for t in conversation_history if t.role == "bot"])
+        seed_base = f"comp_{a[:10]}_{b[:10]}_{turn_count}_{user_message[:20]}"
+        
+        # 1. Opening
+        opening_seed = f"{seed_base}_opening"
+        opening_index = stable_index(opening_seed, len(self.comp_openings[lang]), salt="opening")
+        
+        # Rotate if same as previous turn
+        if len(conversation_history) >= 2:
+            last_bot_turn = None
+            for turn in reversed(conversation_history):
+                if turn.role == "bot":
+                    last_bot_turn = turn
+                    break
+            
+            if last_bot_turn:
+                current_opening = self.comp_openings[lang][opening_index]
+                if current_opening in last_bot_turn.message:
+                    opening_index = (opening_index + 1) % len(self.comp_openings[lang])
+        
+        opening = self.comp_openings[lang][opening_index]
+        
+        # 2. Select 2-3 axes deterministically with rotation
+        axes = []
+        used_axes = set()
+        
+        for i in range(min(3, len(self.axes[lang]))):
+            axis_seed = f"{seed_base}_axis_{i}"
+            axis_index = stable_index(axis_seed, len(self.axes[lang]), salt=f"axis-{i}")
+            
+            # Avoid consecutive repetition
+            if len(conversation_history) >= 2:
+                last_bot_turn = None
+                for turn in reversed(conversation_history):
+                    if turn.role == "bot":
+                        last_bot_turn = turn
+                        break
+                
+                if last_bot_turn:
+                    current_axis = self.axes[lang][axis_index]
+                    if current_axis in last_bot_turn.message:
+                        axis_index = (axis_index + 1) % len(self.axes[lang])
+            
+            # Avoid using the same axis twice in one response
+            attempts = 0
+            while axis_index in used_axes and attempts < len(self.axes[lang]):
+                axis_index = (axis_index + 1) % len(self.axes[lang])
+                attempts += 1
+            
+            used_axes.add(axis_index)
+            axis_template = self.axes[lang][axis_index]
+            axis_text = axis_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
+            axes.append(axis_text)
+        
+        # 3. Claim mapping
+        claim_refutation = ""
+        if preference and ("better" in user_message.lower() or "mejor" in user_message.lower()):
+            if lang == "es":
+                claim_refutation = f"Tu idea central es que {user_side} supera a {bot_side}; sostengo lo contrario por las razones anteriores."
+            else:
+                claim_refutation = f"Your core claim is that {user_side} beats {bot_side}; I maintain the opposite for the reasons above."
+        else:
+            # Fallback to regular claim mapping
+            mapped_claim = self.map_claim(user_message, lang)
+            claim_refutation = f"{mapped_claim}, but this overlooks the practical differences."
+        
+        # 4. Example if requested
+        example_sentence = ""
+        if self.should_include_example(user_message, lang):
+            example_seed = f"{seed_base}_example"
+            example_index = stable_index(example_seed, len(self.comp_examples[lang]), salt="example")
+            example_template = self.comp_examples[lang][example_index]
+            example_sentence = " " + example_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
+        
+        # 5. Closing
+        closing_seed = f"{seed_base}_closing"
+        closing_index = stable_index(closing_seed, len(self.comp_closings[lang]), salt="closing")
+        
+        # Rotate if same as previous turn
+        if len(conversation_history) >= 2:
+            last_bot_turn = None
+            for turn in reversed(conversation_history):
+                if turn.role == "bot":
+                    last_bot_turn = turn
+                    break
+            
+            if last_bot_turn:
+                current_closing = self.comp_closings[lang][closing_index]
+                if current_closing in last_bot_turn.message:
+                    closing_index = (closing_index + 1) % len(self.comp_closings[lang])
+        
+        closing_template = self.comp_closings[lang][closing_index]
+        closing = closing_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
+        
+        # Combine all parts
+        axes_text = " ".join(axes)
+        return f"{opening}, {axes_text} {claim_refutation}{example_sentence} {closing}"
+
     def _generate_unconventional_topic_response(
         self, stance: str, user_message: str, conversation_history: list[Turn], lang: str
     ) -> str:
@@ -387,7 +614,14 @@ class DebateEngine:
         metadata: dict = None,
     ) -> str:
         """Generate deterministic multilingual debate response with variety."""
-        # Check for unconventional topic fallback first
+        # Check for comparator patterns first (before topic routing and generic fallback)
+        comparator_match = self.detect_comparator(user_message, lang)
+        if comparator_match:
+            return self.render_comparator_response(
+                comparator_match, user_message, conversation_history, lang
+            )
+        
+        # Check for unconventional topic fallback
         if topic == "general":
             return self._generate_unconventional_topic_response(
                 stance, user_message, conversation_history, lang
