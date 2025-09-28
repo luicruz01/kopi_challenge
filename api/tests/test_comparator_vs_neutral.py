@@ -120,8 +120,9 @@ class TestComparatorVsNeutral:
         # Should contain Spanish elements
         assert "café" in response_lower or "té" in response_lower, "Should mention the items"
 
-        # Should contain Spanish axis terms
+        # Should contain Spanish axis terms (generic or food-specific)
         spanish_axis_terms = [
+            # Generic terms
             "decisiones coherentes",
             "soluciones ad hoc",
             "más fácil empezar",
@@ -132,6 +133,19 @@ class TestComparatorVsNeutral:
             "resultados inmediatos",
             "reduce fricción",
             "añade pasos extra",
+            # Food-specific terms (since café vs té is food domain)
+            "sabor base",
+            "equilibrado",
+            "dulzor",
+            "carbonatación",
+            "resulta más nítido",
+            "pierde vivacidad",
+            "aroma",
+            "postgusto",
+            "versatilidad",
+            "consistencia",
+            "fatiga menos",
+            "satura el paladar",
         ]
         spanish_found = any(term in response_lower for term in spanish_axis_terms)
         assert spanish_found, f"Should contain Spanish axis terms: {response}"
@@ -203,6 +217,16 @@ class TestComparatorVsNeutral:
                 "steep curve",
                 "easier to get started",
                 "demands initial practice",
+                # Additional axis terms
+                "minimizes interruptions",
+                "introduces micro-decisions",
+                "reduces friction",
+                "adds extra steps",
+                "prioritizes the essential",
+                "scatters attention",
+                "offers immediate results",
+                "adapts better to changes",
+                "maintains structural rigidity",
             ]
         )
         es_axis = any(
@@ -214,6 +238,16 @@ class TestComparatorVsNeutral:
                 "curva empinada",
                 "más fácil empezar",
                 "exige práctica",
+                # Additional axis terms
+                "minimiza interrupciones",
+                "introduce microdecisiones",
+                "reduce fricción",
+                "añade pasos extra",
+                "prioriza lo esencial",
+                "dispersa la atención",
+                "resultados inmediatos",
+                "se adapta mejor",
+                "mantiene rigidez estructural",
             ]
         )
 

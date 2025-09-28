@@ -65,3 +65,90 @@ EXAMPLES_EN = [
     "A concrete case: when choosing between {{A}} and {{B}}, context determines the better option.",
     "Consider how {{A}} and {{B}} function under pressure: strengths reveal themselves quickly.",
 ]
+
+# --- Domain-specific: FOOD/BEVERAGE ---
+
+# Food-specific axes (short, non-factual, B vs A)
+FOOD_AXES_EN = [
+    "On base flavor, {{B}} feels more balanced; {{A}} leans into a single dominant note.",
+    "In sweetness, {{B}} avoids excess; {{A}} can feel cloying over longer sessions.",
+    "For carbonation, {{B}} stays crisper on the palate; {{A}} loses spark sooner.",
+    "Aromatically, {{B}} finishes cleaner; {{A}} leaves a heavier trail.",
+    "In aftertaste, {{B}} fades gracefully; {{A}} lingers a bit too assertively.",
+    "For pairing, {{B}} fits more meals; {{A}} constrains the combination.",
+    "In consistency, {{B}} stays steadier; {{A}} varies more with context.",
+    "Over repeated sips, {{B}} tires the palate less; {{A}} saturates more quickly.",
+]
+
+FOOD_AXES_ES = [
+    "En sabor base, {{B}} es más equilibrado; {{A}} tiende a dominar una sola nota.",
+    "En dulzor, {{B}} evita excesos; {{A}} puede sentirse empalagoso en sesiones largas.",
+    "En carbonatación, {{B}} resulta más nítido; {{A}} pierde vivacidad antes.",
+    "En aroma, {{B}} ofrece una salida más limpia; {{A}} deja una estela más pesada.",
+    "En postgusto, {{B}} se desvanece con elegancia; {{A}} persiste de forma invasiva.",
+    "En versatilidad, {{B}} acompaña mejor distintos alimentos; {{A}} condiciona más la combinación.",
+    "En consistencia, {{B}} mantiene un perfil estable; {{A}} varía más según el entorno.",
+    "En uso continuo, {{B}} fatiga menos; {{A}} satura el paladar con rapidez.",
+]
+
+# Food-specific openings/closings
+FOOD_OPENINGS_EN = [
+    "If we bring this to the palate, the differences are clear…",
+    "From a taste and mouthfeel standpoint…",
+]
+
+FOOD_OPENINGS_ES = [
+    "Si lo llevamos al paladar, las diferencias se notan…",
+    "Visto desde el sabor y la textura…",
+]
+
+FOOD_CLOSINGS_EN = [
+    "That's why, in casual tasting, {{B}} tends to feel more rounded.",
+    "This is exactly where {{B}} stands out in real enjoyment.",
+]
+
+FOOD_CLOSINGS_ES = [
+    "Por eso, en una cata informal, {{B}} suele sentirse más redondo.",
+    "Ahí es donde {{B}} resalta en la experiencia real.",
+]
+
+# Food-specific example sentences (inserted only if user asks for example)
+FOOD_EXAMPLES_EN = [
+    "For example, with salty foods, {{B}} doesn't overrun the main flavor, while {{A}} takes over.",
+]
+
+FOOD_EXAMPLES_ES = [
+    "Por ejemplo, junto a comidas saladas, {{B}} no invade el sabor principal, mientras {{A}} se impone.",
+]
+
+# --- Optional additional axes (not wired into selection; safe to integrate later) ---
+
+# Generic optional axes (EN): reliability, error tolerance, composability, attention cost
+OPTIONAL_AXES_EN = [
+    "{{B}} behaves predictably; {{A}} surprises at the worst moment.",
+    "{{B}} forgives small mistakes; {{A}} penalizes them quickly.",
+    "{{B}} composes cleanly with others; {{A}} creates seams.",
+    "{{B}} reduces mental juggling; {{A}} splits attention further.",
+]
+
+# Generic optional axes (ES)
+OPTIONAL_AXES_ES = [
+    "{{B}} se comporta predecible; {{A}} sorprende en el peor momento.",
+    "{{B}} perdona errores pequeños; {{A}} los penaliza rápido.",
+    "{{B}} compone sin fricciones; {{A}} genera costuras.",
+    "{{B}} reduce la carga mental; {{A}} dispersa la atención.",
+]
+
+# Food optional axes (EN): temperature tolerance, dilution, acidity balance
+OPTIONAL_FOOD_AXES_EN = [
+    "Across temperatures, {{B}} holds better; {{A}} narrows the sweet spot.",
+    "With dilution, {{B}} keeps profile; {{A}} washes out quickly.",
+    "In acidity, {{B}} balances cleanly; {{A}} spikes sharper notes.",
+]
+
+# Food optional axes (ES)
+OPTIONAL_FOOD_AXES_ES = [
+    "En temperatura, {{B}} se mantiene mejor; {{A}} estrecha su punto óptimo.",
+    "Con dilución, {{B}} conserva el perfil; {{A}} se diluye rápido.",
+    "En acidez, {{B}} equilibra limpio; {{A}} marca notas más punzantes.",
+]

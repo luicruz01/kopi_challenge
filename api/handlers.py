@@ -21,6 +21,14 @@ from .lexicon_axes import (
     CLOSINGS_ES,
     EXAMPLES_EN,
     EXAMPLES_ES,
+    FOOD_AXES_EN,
+    FOOD_AXES_ES,
+    FOOD_CLOSINGS_EN,
+    FOOD_CLOSINGS_ES,
+    FOOD_EXAMPLES_EN,
+    FOOD_EXAMPLES_ES,
+    FOOD_OPENINGS_EN,
+    FOOD_OPENINGS_ES,
     OPENINGS_EN,
     OPENINGS_ES,
 )
@@ -45,6 +53,92 @@ class DebateEngine:
         self.comp_openings = {"en": OPENINGS_EN, "es": OPENINGS_ES}
         self.comp_closings = {"en": CLOSINGS_EN, "es": CLOSINGS_ES}
         self.comp_examples = {"en": EXAMPLES_EN, "es": EXAMPLES_ES}
+
+        # Food domain packs
+        self.food_axes = {"en": FOOD_AXES_EN, "es": FOOD_AXES_ES}
+        self.food_openings = {"en": FOOD_OPENINGS_EN, "es": FOOD_OPENINGS_ES}
+        self.food_closings = {"en": FOOD_CLOSINGS_EN, "es": FOOD_CLOSINGS_ES}
+        self.food_examples = {"en": FOOD_EXAMPLES_EN, "es": FOOD_EXAMPLES_ES}
+
+    def _detect_domain_food(self, a: str, b: str, lang: str) -> bool:
+        """Detect if the comparison is food/beverage. Require both sides to be food/beverage to reduce false positives."""
+
+        def norm(s: str) -> str:
+            s = s.lower()
+            s = re.sub(r"[^\w\s]", " ", s)
+            return " ".join(s.split())
+
+        a_text = norm(a)
+        b_text = norm(b)
+
+        if lang == "es":
+            beverages = [
+                "coca",
+                "coca cola",
+                "pepsi",
+                "refresco",
+                "gaseosa",
+                "cola",
+                "café",
+                "te",
+                "té",
+                "cerveza",
+                "vino",
+                "jugo",
+            ]
+            foods = [
+                "pizza",
+                "piña",
+                "hamburguesa",
+                "sushi",
+                "ramen",
+                "chocolate",
+                "queso",
+                "pan",
+            ]
+        else:
+            beverages = [
+                "coke",
+                "coca cola",
+                "pepsi",
+                "soda",
+                "cola",
+                "sprite",
+                "fanta",
+                "coffee",
+                "tea",
+                "espresso",
+                "latte",
+                "beer",
+                "wine",
+                "juice",
+            ]
+            foods = [
+                "pizza",
+                "pineapple",
+                "burger",
+                "sushi",
+                "ramen",
+                "chocolate",
+                "cheese",
+                "bread",
+            ]
+
+        def any_in(words: list[str], tokens: set[str], text: str) -> bool:
+            for w in words:
+                parts = w.split()
+                if len(parts) == 1 and parts[0] in tokens:
+                    return True
+                if len(parts) > 1 and w in text:
+                    return True
+            return False
+
+        a_tokens, b_tokens = set(a_text.split()), set(b_text.split())
+        a_food = any_in(beverages, a_tokens, a_text) or any_in(foods, a_tokens, a_text)
+        b_food = any_in(beverages, b_tokens, b_text) or any_in(foods, b_tokens, b_text)
+
+        # Only classify as food if BOTH sides look like food/beverage items
+        return a_food and b_food
 
     def detect_lang(self, text: str) -> str:
         """Detect language using simple heuristics - returns 'es' or 'en'."""
@@ -483,6 +577,18 @@ class DebateEngine:
                     "micro-decisions",
                 ]
 
+                # Food domain indicators (EN)
+                food_axis_indicators_en = [
+                    "base flavor",
+                    "sweetness",
+                    "carbonation",
+                    "aromatically",
+                    "aftertaste",
+                    "pairing",
+                    "over repeated sips",
+                    "mouthfeel",
+                ]
+
                 spanish_axis_indicators = [
                     "reduce fricción",
                     "añade pasos extra",
@@ -503,7 +609,21 @@ class DebateEngine:
                     "microdecisiones",
                 ]
 
-                indicators = axis_indicators if lang == "en" else spanish_axis_indicators
+                # Food domain indicators (ES)
+                food_axis_indicators_es = [
+                    "sabor base",
+                    "dulzor",
+                    "carbonatación",
+                    "aroma",
+                    "postgusto",
+                    "versatilidad",
+                    "cata",
+                ]
+
+                if lang == "en":
+                    indicators = axis_indicators + food_axis_indicators_en
+                else:
+                    indicators = spanish_axis_indicators + food_axis_indicators_es
 
                 if any(indicator in response_lower for indicator in indicators):
                     # Extract the A and B terms from claim refutation patterns
@@ -585,18 +705,26 @@ class DebateEngine:
         clarification_index = stable_index(seed_base, len(clarifications), salt="clarification")
         clarification = clarifications[clarification_index]
 
-        # 3. Reinforce with one axis argument
+        # 3. Reinforce with one axis argument (domain-aware)
         axis_seed = f"{seed_base}_axis"
-        axis_index = stable_index(axis_seed, len(self.axes[lang]), salt="followup_axis")
-        axis_template = self.axes[lang][axis_index]
+        # Detect domain based on context sides
+        is_food = self._detect_domain_food(user_side, bot_side, lang)
+        pool = self.food_axes[lang] if is_food else self.axes[lang]
+        axis_index = stable_index(axis_seed, len(pool), salt="followup_axis")
+        axis_template = pool[axis_index]
         axis_text = axis_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
 
-        # 4. Closing
+        # 4. Closing (domain-aware)
         closing_seed = f"{seed_base}_closing"
-        closing_index = stable_index(
-            closing_seed, len(self.comp_closings[lang]), salt="followup_closing"
-        )
-        closing_template = self.comp_closings[lang][closing_index]
+        if is_food:
+            closings_pool = self.food_closings[lang] + self.comp_closings[lang]
+            closing_index = stable_index(
+                closing_seed, len(closings_pool), salt="food-followup-closing"
+            )
+        else:
+            closings_pool = self.comp_closings[lang]
+            closing_index = stable_index(closing_seed, len(closings_pool), salt="followup_closing")
+        closing_template = closings_pool[closing_index]
         closing = closing_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
 
         return f"{opening}, {clarification.lower()}. {axis_text} {closing}"
@@ -639,9 +767,17 @@ class DebateEngine:
         turn_count = len([t for t in conversation_history if t.role == "bot"])
         seed_base = f"comp_{a[:10]}_{b[:10]}_{turn_count}_{user_message[:20]}"
 
-        # 1. Opening
+        # Domain detection for food/beverage
+        is_food = self._detect_domain_food(a, b, lang)
+
+        # 1. Opening (domain-aware, with rotation avoidance)
         opening_seed = f"{seed_base}_opening"
-        opening_index = stable_index(opening_seed, len(self.comp_openings[lang]), salt="opening")
+        if is_food:
+            openings_pool = self.food_openings[lang] + self.comp_openings[lang]
+            opening_index = stable_index(opening_seed, len(openings_pool), salt="food-opening")
+        else:
+            openings_pool = self.comp_openings[lang]
+            opening_index = stable_index(opening_seed, len(openings_pool), salt="opening")
 
         # Rotate if same as previous turn
         if len(conversation_history) >= 2:
@@ -656,67 +792,82 @@ class DebateEngine:
                 if current_opening in last_bot_turn.message:
                     opening_index = (opening_index + 1) % len(self.comp_openings[lang])
 
-        opening = self.comp_openings[lang][opening_index]
+        # Rotate if same as previous turn
+        if len(conversation_history) >= 2:
+            last_bot_turn = None
+            for turn in reversed(conversation_history):
+                if turn.role == "bot":
+                    last_bot_turn = turn
+                    break
+            if last_bot_turn:
+                current_opening = openings_pool[opening_index]
+                if current_opening in last_bot_turn.message:
+                    opening_index = (opening_index + 1) % len(openings_pool)
 
-        # 2. Select 2-3 axes deterministically with rotation
-        axes = []
-        used_axes = set()
+        opening = openings_pool[opening_index]
 
-        for i in range(min(3, len(self.axes[lang]))):
-            axis_seed = f"{seed_base}_axis_{i}"
-            axis_index = stable_index(axis_seed, len(self.axes[lang]), salt=f"axis-{i}")
+        # 2. Select exactly 1 concise axis (domain-aware) with rotation over turns
+        generic_pool = self.axes[lang]
+        pool = self.food_axes[lang] if is_food else generic_pool
 
-            # Avoid consecutive repetition
-            if len(conversation_history) >= 2:
-                last_bot_turn = None
-                for turn in reversed(conversation_history):
-                    if turn.role == "bot":
-                        last_bot_turn = turn
-                        break
+        axis_seed = f"{seed_base}_axis_0"
+        axis_index = stable_index(axis_seed, len(pool), salt="axis-k")
 
-                if last_bot_turn:
-                    current_axis = self.axes[lang][axis_index]
-                    if current_axis in last_bot_turn.message:
-                        axis_index = (axis_index + 1) % len(self.axes[lang])
+        # Avoid consecutive repetition across turns
+        if len(conversation_history) >= 2:
+            last_bot_turn = None
+            for turn in reversed(conversation_history):
+                if turn.role == "bot":
+                    last_bot_turn = turn
+                    break
+            if last_bot_turn:
+                current_axis = pool[axis_index]
+                if current_axis in last_bot_turn.message:
+                    axis_index = (axis_index + 1) % len(pool)
 
-            # Avoid using the same axis twice in one response
-            attempts = 0
-            while axis_index in used_axes and attempts < len(self.axes[lang]):
-                axis_index = (axis_index + 1) % len(self.axes[lang])
-                attempts += 1
+        axis_template = pool[axis_index]
+        axis_text = axis_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
+        axes = [axis_text]
 
-            used_axes.add(axis_index)
-            axis_template = self.axes[lang][axis_index]
-            axis_text = axis_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
-            axes.append(axis_text)
-
-        # 3. Claim mapping
-        claim_refutation = ""
+        # 3. Claim mapping (preserve existing contract)
         if preference and ("better" in user_message.lower() or "mejor" in user_message.lower()):
             if lang == "es":
                 claim_refutation = f"Tu idea central es que {user_side} supera a {bot_side}; sostengo lo contrario por las razones anteriores."
             else:
                 claim_refutation = f"Your core claim is that {user_side} beats {bot_side}; I maintain the opposite for the reasons above."
         else:
-            # Fallback to regular claim mapping
             mapped_claim = self.map_claim(user_message, lang)
-            claim_refutation = f"{mapped_claim}, but this overlooks the practical differences."
+            if lang == "es":
+                claim_refutation = f"{mapped_claim}, pero esta perspectiva pasa por alto consideraciones importantes."
+            else:
+                claim_refutation = f"{mapped_claim}, but this overlooks the practical differences."
 
-        # 4. Example if requested
+        # 4. Example if requested (domain-aware)
         example_sentence = ""
         if self.should_include_example(user_message, lang):
             example_seed = f"{seed_base}_example"
-            example_index = stable_index(
-                example_seed, len(self.comp_examples[lang]), salt="example"
-            )
-            example_template = self.comp_examples[lang][example_index]
+            if is_food and self.food_examples[lang]:
+                example_index = stable_index(
+                    example_seed, len(self.food_examples[lang]), salt="food-example"
+                )
+                example_template = self.food_examples[lang][example_index]
+            else:
+                example_index = stable_index(
+                    example_seed, len(self.comp_examples[lang]), salt="example"
+                )
+                example_template = self.comp_examples[lang][example_index]
             example_sentence = " " + example_template.replace("{{A}}", user_side).replace(
                 "{{B}}", bot_side
             )
 
-        # 5. Closing
+        # 5. Closing (domain-aware, with rotation avoidance)
         closing_seed = f"{seed_base}_closing"
-        closing_index = stable_index(closing_seed, len(self.comp_closings[lang]), salt="closing")
+        if is_food:
+            closings_pool = self.food_closings[lang] + self.comp_closings[lang]
+            closing_index = stable_index(closing_seed, len(closings_pool), salt="food-closing")
+        else:
+            closings_pool = self.comp_closings[lang]
+            closing_index = stable_index(closing_seed, len(closings_pool), salt="closing")
 
         # Rotate if same as previous turn
         if len(conversation_history) >= 2:
@@ -731,7 +882,19 @@ class DebateEngine:
                 if current_closing in last_bot_turn.message:
                     closing_index = (closing_index + 1) % len(self.comp_closings[lang])
 
-        closing_template = self.comp_closings[lang][closing_index]
+        # Rotate if same as previous turn
+        if len(conversation_history) >= 2:
+            last_bot_turn = None
+            for turn in reversed(conversation_history):
+                if turn.role == "bot":
+                    last_bot_turn = turn
+                    break
+            if last_bot_turn:
+                current_closing = closings_pool[closing_index]
+                if current_closing in last_bot_turn.message:
+                    closing_index = (closing_index + 1) % len(closings_pool)
+
+        closing_template = closings_pool[closing_index]
         closing = closing_template.replace("{{A}}", user_side).replace("{{B}}", bot_side)
 
         # Combine all parts

@@ -36,16 +36,28 @@ class TestComparatorBetterThan:
         assert "pepsi" in response_lower, f"Response should mention Pepsi: {response}"
 
         # Should take opposite side (argue for Pepsi when user prefers Coke)
-        # Should contain axis-based arguments, not specific beverage arguments
-        axis_terms = [
+        # Should contain axis-based arguments (generic or food domain)
+        generic_axis_terms = [
             "more direct",
             "requires additional context",
             "easier to get started",
             "demands initial practice",
             "prioritizes the essential",
             "coherent long-term decisions",
+            "reduces friction",
+            "adds extra steps",
         ]
-        axis_found = any(term in response_lower for term in axis_terms)
+        food_axis_terms = [
+            "base flavor",
+            "sweetness",
+            "carbonation",
+            "aromatically",
+            "aftertaste",
+            "pairing",
+            "over repeated sips",
+            "stays steadier",
+        ]
+        axis_found = any(term in response_lower for term in (generic_axis_terms + food_axis_terms))
         assert axis_found, f"Should contain axis-based arguments: {response}"
 
         # Should NOT mention unrelated topics
@@ -70,15 +82,26 @@ class TestComparatorBetterThan:
             term in response_lower for term in ["coca", "cola", "pepsi"]
         ), f"Should mention brands: {response}"
 
-        # Should contain Spanish axis arguments
-        spanish_axis_terms = [
+        # Should contain Spanish axis arguments (generic or food domain)
+        spanish_generic_axis_terms = [
             "decisiones coherentes",
             "soluciones ad hoc",
             "más fácil empezar",
             "se adapta mejor",
-            "favorece",
+            "reduce fricción",
         ]
-        spanish_axis_found = any(term in response_lower for term in spanish_axis_terms)
+        spanish_food_axis_terms = [
+            "sabor base",
+            "dulzor",
+            "carbonatación",
+            "aroma",
+            "postgusto",
+            "versatilidad",
+        ]
+        spanish_axis_found = any(
+            term in response_lower
+            for term in (spanish_generic_axis_terms + spanish_food_axis_terms)
+        )
         assert spanish_axis_found, f"Should contain Spanish axis arguments: {response}"
 
     def test_deterministic_responses(self):
