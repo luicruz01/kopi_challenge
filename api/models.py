@@ -61,6 +61,7 @@ class HealthResponse(BaseModel):
 
     status: str
     deps: dict[str, str] | None = None
+    version: dict[str, str] | None = None
 
 
 # Update forward references

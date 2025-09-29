@@ -12,6 +12,7 @@ from .middleware import AccessLogMiddleware, RequestIdMiddleware, TimeoutMiddlew
 from .models import ChatRequest, ChatResponse, ErrorEnvelope, ErrorInfo, HealthResponse
 from .observability import metrics, setup_logging
 from .storage import create_store
+from .utils import get_git_hash
 
 # Environment variables
 APP_ENV = os.getenv("APP_ENV", "local")
@@ -203,8 +204,16 @@ async def liveness_check():
 
 @app.get("/readyz", response_model=HealthResponse)
 async def readiness_check():
-    """Readiness probe - checks dependencies."""
+    """Readiness probe - checks dependencies and shows version info."""
     response_data = {"status": "ok"}
+
+    # Add version information
+    git_hash = get_git_hash()
+    version_info = {}
+    if git_hash:
+        version_info["git_hash"] = git_hash
+    version_info["app_env"] = APP_ENV
+    response_data["version"] = version_info
 
     # Get store from app state or global, initialize if needed
     current_store = getattr(app.state, "store", None) or store
